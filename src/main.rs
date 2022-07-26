@@ -5,11 +5,13 @@ mod components;
 mod map;
 mod player;
 mod rect;
+mod visibility_system;
 
 pub use components::*;
 pub use map::*;
 use player::*;
-pub use rect::*;
+pub use rect::Rect;
+pub use visibility_system::VisibilitySystem;
 
 pub struct State {
     ecs: World,
@@ -17,6 +19,8 @@ pub struct State {
 
 impl State {
     fn run_systems(&mut self) {
+        let mut visibility_system = VisibilitySystem {};
+        visibility_system.run_now(&self.ecs);
         self.ecs.maintain(); // Tells Specs to apply any changes that are queued up.
     }
 }
@@ -32,8 +36,7 @@ impl GameState for State {
         self.run_systems(); // Within run_systems(...)
 
         // Render the Map
-        let map = self.ecs.fetch::<Vec<TileType>>();
-        draw_map(&map, context);
+        draw_map(&self.ecs, context);
 
         // Here we're calling into the ECS to perform the Rendering
         let positions = self.ecs.read_storage::<Position>();
@@ -61,17 +64,18 @@ fn main() -> rltk::BError {
     };
 
     // Register Components with ECS.
+    game_state.ecs.register::<Player>();
     game_state.ecs.register::<Position>();
     game_state.ecs.register::<Renderer>();
-    game_state.ecs.register::<Player>();
+    game_state.ecs.register::<Viewshed>();
 
     // Generate the Map
-    let (rooms, map) = new_map_rooms_and_corridors();
+    let map = Map::new_map_rooms_and_corridors();
+    let (player_x, player_y) = map.rooms[0].center();
     // Add resources to the ECS.
     game_state.ecs.insert(map);
 
     // Create Player
-    let (player_x, player_y) = rooms[0].center();
     game_state.ecs
         .create_entity()
         .with(Position { x: player_x, y: player_y })
@@ -81,6 +85,11 @@ fn main() -> rltk::BError {
             bg: RGB::named(rltk::BLACK),
         })
         .with(Player {})
+        .with(Viewshed {
+            visible_tiles: Vec::new(),
+            range: 8,
+            dirty: true,
+        })
         .build();
 
 

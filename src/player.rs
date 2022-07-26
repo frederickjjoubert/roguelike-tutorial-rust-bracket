@@ -1,24 +1,27 @@
 use rltk::{VirtualKeyCode, Rltk};
 use specs::prelude::*;
-use super::{Position, Player, TileType, xy_idx, State};
-use std::cmp::{min, max};
+use std::cmp::{max, min};
+use crate::Viewshed;
+use super::{Position, Player, TileType, State, Map};
 
 pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) {
-    let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
+    let mut positions = ecs.write_storage::<Position>();
+    let mut viewsheds = ecs.write_storage::<Viewshed>();
 
-    let map = ecs.fetch::<Vec<TileType>>();
+    let map = ecs.fetch::<Map>();
 
-    for (_player, position) in (&mut players, &mut positions).join() {
+    for (_player, position, viewshed) in (&mut players, &mut positions, &mut viewsheds).join() {
         let x = position.x + dx;
         let y = position.y + dy;
-        let idx = xy_idx(x, y);
+        let idx = map.xy_idx(x, y);
 
         // Check the tile isn't blocked
-        if map[idx] != TileType::Wall {
+        if map.tiles[idx] != TileType::Wall {
             // Check you haven't left the screen.
             position.x = min(79, max(0, position.x + dx));
             position.y = min(49, max(0, position.y + dy));
+            viewshed.dirty = true;
         }
     }
 }
