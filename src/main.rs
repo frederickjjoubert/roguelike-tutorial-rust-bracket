@@ -3,6 +3,7 @@ use specs::prelude::*;
 
 mod components;
 mod map;
+mod map_indexing_system;
 mod monster_ai_system;
 mod player;
 mod rect;
@@ -10,6 +11,7 @@ mod visibility_system;
 
 pub use components::*;
 pub use map::*;
+use map_indexing_system::MapIndexingSystem;
 pub use monster_ai_system::MonsterAI;
 use player::*;
 pub use rect::Rect;
@@ -32,6 +34,8 @@ impl State {
         visibility_system.run_now(&self.ecs);
         let mut monster_ai_system = MonsterAI {};
         monster_ai_system.run_now(&self.ecs);
+        let mut map_indexing_system = MapIndexingSystem {};
+        map_indexing_system.run_now(&self.ecs);
         self.ecs.maintain(); // Tells Specs to apply any changes that are queued up.
     }
 }
@@ -85,6 +89,7 @@ fn main() -> rltk::BError {
     };
 
     // Register Components with ECS.
+    game_state.ecs.register::<BlocksTile>();
     game_state.ecs.register::<Monster>();
     game_state.ecs.register::<Name>();
     game_state.ecs.register::<Player>();
@@ -101,6 +106,7 @@ fn main() -> rltk::BError {
     // Create Player
     game_state.ecs
         .create_entity()
+        // .with(BlocksTile {})
         .with(Name {
             name: "Player".to_string()
         })
@@ -138,6 +144,7 @@ fn main() -> rltk::BError {
         }
         game_state.ecs
             .create_entity()
+            .with(BlocksTile {})
             .with(Monster {})
             .with(Name {
                 name: format!("{} #{}", name, index)

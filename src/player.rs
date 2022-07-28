@@ -17,7 +17,7 @@ pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) {
         let idx = map.xy_idx(x, y);
 
         // Check the tile isn't blocked
-        if map.tiles[idx] != TileType::Wall {
+        if !map.blocked_tiles[idx] {
             // Check you haven't left the screen.
             position.x = min(79, max(0, position.x + dx));
             position.y = min(49, max(0, position.y + dy));

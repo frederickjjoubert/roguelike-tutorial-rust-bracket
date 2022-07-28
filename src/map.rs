@@ -16,6 +16,7 @@ pub struct Map {
     pub height: i32,
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
+    pub blocked_tiles: Vec<bool>,
 }
 
 impl Algorithm2D for Map {
@@ -63,9 +64,15 @@ impl Map {
     pub fn is_exit_valid(&self, x: i32, y: i32) -> bool {
         if x < 1 || x > self.width - 1 || y < 1 || y > self.height - 1 { return false; };
         let index = self.xy_idx(x, y);
-        self.tiles[index] != TileType::Wall
+        !self.blocked_tiles[index]
     }
-    
+
+    pub fn calculate_blocked_tiles(&mut self) {
+        for (i, tile) in self.tiles.iter().enumerate() {
+            self.blocked_tiles[i] = *tile == TileType::Wall;
+        }
+    }
+
     pub fn new_map_rooms_and_corridors() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; 80 * 50],
@@ -74,6 +81,7 @@ impl Map {
             height: 50,
             revealed_tiles: vec![false; 80 * 50],
             visible_tiles: vec![false; 80 * 50],
+            blocked_tiles: vec![false; 80 * 50],
         };
 
         const MAX_ROOMS: i32 = 30;

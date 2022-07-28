@@ -4,6 +4,9 @@ use rltk::{RGB};
 
 // Components
 #[derive(Component, Debug)]
+pub struct BlocksTile {}
+
+#[derive(Component, Debug)]
 pub struct Monster {}
 
 #[derive(Component, Debug)]
