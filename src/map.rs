@@ -1,4 +1,4 @@
-use rltk::{RGB, Rltk, RandomNumberGenerator, BaseMap, Algorithm2D, Point};
+use rltk::{RGB, Rltk, RandomNumberGenerator, BaseMap, Algorithm2D, Point, SmallVec};
 use super::{Rect};
 use std::cmp::{max, min};
 use specs::prelude::*;
@@ -28,6 +28,28 @@ impl BaseMap for Map {
     fn is_opaque(&self, idx: usize) -> bool {
         self.tiles[idx] == TileType::Wall
     }
+
+    fn get_available_exits(&self, idx: usize) -> SmallVec<[(usize, f32); 10]> {
+        let mut exits = rltk::SmallVec::new();
+        let x = idx as i32 % self.width;
+        let y = idx as i32 / self.width;
+        let w = self.width as usize;
+
+        // Cardinal Directions
+        if self.is_exit_valid(x - 1, y) { exits.push((idx - 1, 1.0)); }
+        if self.is_exit_valid(x + 1, y) { exits.push((idx + 1, 1.0)); }
+        if self.is_exit_valid(x, y - 1) { exits.push((idx - w, 1.0)); }
+        if self.is_exit_valid(x, y + 1) { exits.push((idx + w, 1.0)); }
+
+        exits
+    }
+
+    fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
+        let w = self.width as usize;
+        let point_1 = Point::new(idx1 % w, idx1 / w);
+        let point_2 = Point::new(idx2 % w, idx2 / w);
+        rltk::DistanceAlg::Pythagoras.distance2d(point_1, point_2)
+    }
 }
 
 impl Map {
@@ -37,6 +59,13 @@ impl Map {
         (y as usize * self.width as usize) + x as usize
     }
 
+    // Helper for "get_available_exits(...)"
+    pub fn is_exit_valid(&self, x: i32, y: i32) -> bool {
+        if x < 1 || x > self.width - 1 || y < 1 || y > self.height - 1 { return false; };
+        let index = self.xy_idx(x, y);
+        self.tiles[index] != TileType::Wall
+    }
+    
     pub fn new_map_rooms_and_corridors() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; 80 * 50],

@@ -51,7 +51,7 @@ impl GameState for State {
                 self.run_state = RunState::Paused;
             }
         }
-        
+
         // Render Loop
         // Render the Map
         draw_map(&self.ecs, context);
