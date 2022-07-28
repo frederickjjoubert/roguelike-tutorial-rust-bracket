@@ -42,6 +42,13 @@ impl BaseMap for Map {
         if self.is_exit_valid(x, y - 1) { exits.push((idx - w, 1.0)); }
         if self.is_exit_valid(x, y + 1) { exits.push((idx + w, 1.0)); }
 
+        // Diagonal Directions
+        if self.is_exit_valid(x - 1, y - 1) { exits.push(((idx - w) - 1, 1.45)); }
+        if self.is_exit_valid(x + 1, y - 1) { exits.push(((idx - w) + 1, 1.45)); }
+        if self.is_exit_valid(x - 1, y + 1) { exits.push(((idx + w) - 1, 1.45)); }
+        if self.is_exit_valid(x + 1, y + 1) { exits.push(((idx + w) + 1, 1.45)); }
+        // ^ Note to self on the above, I believe the tuple above is (index, distance)
+
         exits
     }
 
