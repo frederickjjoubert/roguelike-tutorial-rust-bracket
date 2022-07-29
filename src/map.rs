@@ -3,9 +3,9 @@ use super::{Rect};
 use std::cmp::{max, min};
 use specs::prelude::*;
 
-const MAP_WIDTH: usize = 80;
-const MAP_HEIGHT: usize = 50;
-const MAP_COUNT: usize = MAP_WIDTH * MAP_HEIGHT;
+pub const MAP_WIDTH: usize = 80;
+pub const MAP_HEIGHT: usize = 43;
+pub const MAP_COUNT: usize = MAP_WIDTH * MAP_HEIGHT;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
@@ -112,8 +112,8 @@ impl Map {
         for _ in 0..MAX_ROOMS {
             let w = rng.range(MIN_SIZE, MAX_SIZE);
             let h = rng.range(MIN_SIZE, MAX_SIZE);
-            let x = rng.roll_dice(1, 80 - w - 1) - 1;
-            let y = rng.roll_dice(1, 50 - h - 1) - 1;
+            let x = rng.roll_dice(1, MAP_WIDTH as i32 - w - 1) - 1;
+            let y = rng.roll_dice(1, MAP_HEIGHT as i32 - h - 1) - 1;
             let new_room = Rect::new(x, y, w, h);
 
             let mut rooms_intersect = false;
@@ -158,7 +158,7 @@ impl Map {
     pub fn apply_horizontal_corridor(&mut self, x1: i32, x2: i32, y: i32) {
         for x in min(x1, x2)..=max(x1, x2) {
             let idx = self.xy_idx(x, y);
-            if idx > 0 && idx < 80 * 50 {
+            if idx > 0 && idx < MAP_WIDTH * MAP_HEIGHT {
                 self.tiles[idx] = TileType::Floor;
             }
         }
@@ -167,7 +167,7 @@ impl Map {
     pub fn apply_vertical_corridor(&mut self, y1: i32, y2: i32, x: i32) {
         for y in min(y1, y2)..=max(y1, y2) {
             let idx = self.xy_idx(x, y);
-            if idx > 0 && idx < 80 * 50 {
+            if idx > 0 && idx < MAP_WIDTH * MAP_HEIGHT {
                 self.tiles[idx] = TileType::Floor;
             }
         }

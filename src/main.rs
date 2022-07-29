@@ -1,4 +1,4 @@
-use rltk::{Rltk, GameState, RGB, FontCharType, Point};
+use rltk::{Rltk, GameState, Point};
 use specs::prelude::*;
 
 mod components;
@@ -144,83 +144,21 @@ fn main() -> rltk::BError {
     let (player_x, player_y) = map.rooms[0].center();
 
     // Create Player
-    let player_entity = game_state.ecs
-        .create_entity()
-        .with(CombatStats {
-            max_hp: 30,
-            hp: 30,
-            defense: 2,
-            power: 5,
-        })
-        .with(Name {
-            name: "Player".to_string()
-        })
-        .with(Player {})
-        .with(Position { x: player_x, y: player_y })
-        .with(Renderer {
-            glyph: rltk::to_cp437('@'),
-            fg: RGB::named(rltk::YELLOW),
-            bg: RGB::named(rltk::BLACK),
-        })
-        .with(Viewshed {
-            visible_tiles: Vec::new(),
-            range: 8,
-            dirty: true,
-        })
-        .build();
+    let player_entity = spawner::spawn_player(&mut game_state.ecs, player_x, player_y);
 
+    // Insert the RNG as an ECS Resource
+    game_state.ecs.insert(rltk::RandomNumberGenerator::new());
 
     // Create Monsters
-    let mut rng = rltk::RandomNumberGenerator::new();
-
-    for (index, room) in map.rooms.iter().skip(1).enumerate() {
-        let (x, y) = room.center();
-        let name: String;
-        let glyph: FontCharType;
-        let roll = rng.roll_dice(1, 2);
-        match roll {
-            1 => {
-                name = "Goblin".to_string();
-                glyph = rltk::to_cp437('g')
-            }
-            _ => {
-                name = "Orc".to_string();
-                glyph = rltk::to_cp437('o')
-            }
-        }
-        game_state.ecs
-            .create_entity()
-            .with(BlocksTile {})
-            .with(CombatStats {
-                max_hp: 16,
-                hp: 16,
-                defense: 1,
-                power: 4,
-            })
-            .with(Monster {})
-            .with(Name {
-                name: format!("{} #{}", name, index)
-            })
-            .with(Position { x, y })
-            .with(Renderer {
-                glyph,
-                fg: RGB::named(rltk::RED),
-                bg: RGB::named(rltk::BLACK),
-            })
-            .with(Viewshed {
-                visible_tiles: Vec::new(),
-                range: 8,
-                dirty: true,
-            })
-            .build();
-    }
+    for room in map.rooms.iter().skip(1) {
+        spawner::fill_room(&mut game_state.ecs, room);
+    };
 
     // Add resources to the ECS. (Kinda like global variables?)
     game_state.ecs.insert(game_log::GameLog { entries: vec!["You find yourself in a dark room with no recollection of who you are.".to_string()] });
     game_state.ecs.insert(map);
     game_state.ecs.insert(player_entity);
     game_state.ecs.insert(Point::new(player_x, player_y));
-    game_state.ecs.insert(rltk::RandomNumberGenerator::new());
     game_state.ecs.insert(RunState::PreRun);
 
     // Run the main game loop.
