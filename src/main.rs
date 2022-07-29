@@ -23,13 +23,14 @@ pub use visibility_system::VisibilitySystem;
 
 pub struct State {
     pub ecs: World,
-    pub run_state: RunState,
 }
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
-    Paused,
-    Running,
+    AwaitingInput,
+    PreRun,
+    PlayerTurn,
+    MonsterTurn,
 }
 
 impl State {
@@ -38,13 +39,12 @@ impl State {
         visibility_system.run_now(&self.ecs);
         let mut monster_ai_system = MonsterAI {};
         monster_ai_system.run_now(&self.ecs);
+        let mut map_indexing_system = MapIndexingSystem {};
+        map_indexing_system.run_now(&self.ecs);
         let mut melee_combat_system = MeleeCombatSystem {};
         melee_combat_system.run_now(&self.ecs);
         let mut damage_system = DamageSystem {};
         damage_system.run_now(&self.ecs);
-        damage_system::delete_the_dead(&mut self.ecs);
-        let mut map_indexing_system = MapIndexingSystem {};
-        map_indexing_system.run_now(&self.ecs);
         self.ecs.maintain(); // Tells Specs to apply any changes that are queued up.
     }
 }
@@ -53,17 +53,39 @@ impl GameState for State {
     fn tick(&mut self, context: &mut Rltk) {
         context.cls(); // CLS: Clear the Screen.
 
-        match self.run_state {
-            RunState::Paused => {
-                // Player Input
-                self.run_state = player_input(self, context);
+        // Get RunState resource
+        let current_run_state = *self.ecs.fetch::<RunState>();
+        let new_run_state: RunState;
+
+        // Match on RunState
+        match current_run_state {
+            RunState::PreRun => {
+                self.run_systems();
+                new_run_state = RunState::AwaitingInput;
             }
-            RunState::Running => {
+            RunState::AwaitingInput => {
+                // Player Input
+                new_run_state = player_input(self, context);
+            }
+            RunState::PlayerTurn => {
                 // Here the ECS is calling out to our functions and components.
                 self.run_systems(); // Within run_systems(...)
-                self.run_state = RunState::Paused;
+                new_run_state = RunState::MonsterTurn;
+            }
+            RunState::MonsterTurn => {
+                self.run_systems();
+                new_run_state = RunState::AwaitingInput;
             }
         }
+
+        // Update RunState resource.
+        {
+            let mut run_state_writer = self.ecs.write_resource::<RunState>();
+            *run_state_writer = new_run_state;
+        }
+
+        // Clean up the dead.
+        damage_system::delete_the_dead(&mut self.ecs);
 
         // Render Loop
         // Render the Map
@@ -94,7 +116,6 @@ fn main() -> rltk::BError {
         .build()?;
     let mut game_state = State {
         ecs: World::new(),
-        run_state: RunState::Running,
     };
 
     // Register Components with ECS.
@@ -116,7 +137,7 @@ fn main() -> rltk::BError {
     let (player_x, player_y) = map.rooms[0].center();
 
     // Create Player
-    game_state.ecs
+    let player_entity = game_state.ecs
         .create_entity()
         .with(CombatStats {
             max_hp: 30,
@@ -140,6 +161,7 @@ fn main() -> rltk::BError {
             dirty: true,
         })
         .build();
+
 
     // Create Monsters
     let mut rng = rltk::RandomNumberGenerator::new();
@@ -186,9 +208,11 @@ fn main() -> rltk::BError {
             .build();
     }
 
-    // Add resources to the ECS.
+    // Add resources to the ECS. (Kinda like global variables)
     game_state.ecs.insert(map);
+    game_state.ecs.insert(player_entity);
     game_state.ecs.insert(Point::new(player_x, player_y));
+    game_state.ecs.insert(RunState::PreRun);
 
     // Run the main game loop.
     rltk::main_loop(context, game_state)

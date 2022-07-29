@@ -1,4 +1,4 @@
-use rltk::{console, Point, Rltk, VirtualKeyCode};
+use rltk::{Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use std::cmp::{max, min};
 use crate::{CombatStats, RunState, Viewshed, WantsToMelee};
@@ -50,7 +50,7 @@ pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) {
 pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
     match context.key {
         None => {
-            return RunState::Paused;
+            return RunState::AwaitingInput;
         } // No Input, Do Nothing.
         Some(key) => {
             match key {
@@ -85,11 +85,11 @@ pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
                 VirtualKeyCode::B => try_move_player(-1, 1, &mut game_state.ecs),
 
                 _ => {
-                    return RunState::Paused;
+                    return RunState::AwaitingInput;
                 } // Anything else, Do Nothing.
             }
         }
     }
-    RunState::Running
+    RunState::PlayerTurn
 }
 

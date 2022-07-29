@@ -1,4 +1,6 @@
+use rltk::console;
 use specs::prelude::*;
+use crate::Player;
 use super::{CombatStats, SufferDamage};
 
 pub struct DamageSystem {}
@@ -23,18 +25,27 @@ pub fn delete_the_dead(ecs: &mut World) {
     let mut the_dead: Vec<Entity> = Vec::new();
 
     // Nested Scope to make the Borrow Checker happy.
-    // Otherwise it complains about line 39 since we do an immutable borrow on line 29.
+    // Otherwise it complains about line Y since we do an immutable borrow on line X.
     {
-        let entities = ecs.entities(); // Immutable Borrow of ecs.
+        let entities = ecs.entities(); // Line X: Immutable Borrow of ecs.
         let combat_stats = ecs.read_storage::<CombatStats>();
+        let players = ecs.read_storage::<Player>();
         for (entity, combat_stat) in (&entities, &combat_stats).join() {
             if combat_stat.hp <= 0 {
-                the_dead.push(entity);
+                let player = players.get(entity); // Check if the current entity is the player.
+                match player {
+                    Some(_) => {
+                        console::log("You are dead!");
+                    }
+                    None => {
+                        the_dead.push(entity);
+                    }
+                }
             }
         }
     }
 
     for victim in the_dead {
-        ecs.delete_entity(victim).expect("Unable to delete Entity"); // Mutating ecs.
+        ecs.delete_entity(victim).expect("Unable to delete Entity"); // Line Y: Mutating ecs.
     }
 }
