@@ -128,9 +128,11 @@ fn main() -> rltk::BError {
     // Register Components with ECS.
     game_state.ecs.register::<BlocksTile>();
     game_state.ecs.register::<CombatStats>();
+    game_state.ecs.register::<Item>();
     game_state.ecs.register::<Monster>();
     game_state.ecs.register::<Name>();
     game_state.ecs.register::<Player>();
+    game_state.ecs.register::<Potion>();
     game_state.ecs.register::<Position>();
     game_state.ecs.register::<Renderer>();
     game_state.ecs.register::<SufferDamage>();

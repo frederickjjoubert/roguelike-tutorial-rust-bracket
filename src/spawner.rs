@@ -1,18 +1,21 @@
 use rltk::{RGB, RandomNumberGenerator};
 use specs::prelude::*;
 use crate::MAP_WIDTH;
-use super::{CombatStats, Player, Rect, Renderer, Name, Position, Viewshed, Monster, BlocksTile};
+use super::{BlocksTile, CombatStats, Item, Monster, Name, Player, Potion, Position, Rect, Renderer, Viewshed};
 
 const MAX_MONSTERS: i32 = 4;
 const MAX_ITEMS: i32 = 2;
 
 pub fn fill_room(ecs: &mut World, room: &Rect) {
     let mut monster_spawn_points: Vec<usize> = Vec::new();
+    let mut item_spawn_points: Vec<usize> = Vec::new();
+
 
     // Scope to keep borrow checker happy
     {
         let mut rng = ecs.write_resource::<RandomNumberGenerator>();
         let number_of_monsters = rng.roll_dice(1, MAX_MONSTERS + 2) - 3;
+        let number_of_items = rng.roll_dice(1, MAX_ITEMS + 2) - 3;
 
         for _ in 0..number_of_monsters {
             let mut added = false;
@@ -28,6 +31,21 @@ pub fn fill_room(ecs: &mut World, room: &Rect) {
                 }
             }
         }
+
+        for _ in 0..number_of_items {
+            let mut added = false;
+            while !added {
+                let random_x = rng.roll_dice(1, i32::abs(room.x2 - room.x1));
+                let random_y = rng.roll_dice(1, i32::abs(room.y2 - room.y1));
+                let x = (room.x1 + random_x) as usize;
+                let y = (room.y1 + random_y) as usize;
+                let index = (y * MAP_WIDTH) + x;
+                if !item_spawn_points.contains(&index) {
+                    item_spawn_points.push(index);
+                    added = true;
+                }
+            }
+        }
     }
 
     // Spawn the Monsters
@@ -36,6 +54,30 @@ pub fn fill_room(ecs: &mut World, room: &Rect) {
         let y = (*index / MAP_WIDTH) as i32;
         spawn_random_monster(ecs, x, y);
     }
+
+    // Spawn the Items
+    for index in item_spawn_points.iter() {
+        let x = (*index % MAP_WIDTH) as i32;
+        let y = (*index / MAP_WIDTH) as i32;
+        spawn_health_potion(ecs, x, y);
+    }
+}
+
+fn spawn_health_potion(ecs: &mut World, x: i32, y: i32) {
+    ecs
+        .create_entity()
+        .with(Item {})
+        .with(Name { name: "Health Potion".to_string() })
+        .with(Potion {
+            heal_amount: 8
+        })
+        .with(Position { x, y })
+        .with(Renderer {
+            glyph: rltk::to_cp437('¡'),
+            fg: RGB::named(rltk::GREEN),
+            bg: RGB::named(rltk::BLACK),
+        })
+        .build();
 }
 
 pub fn spawn_player(ecs: &mut World, player_x: i32, player_y: i32) -> Entity {
