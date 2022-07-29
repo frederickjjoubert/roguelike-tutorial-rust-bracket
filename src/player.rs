@@ -1,20 +1,38 @@
-use rltk::{Point, Rltk, VirtualKeyCode};
+use rltk::{console, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use std::cmp::{max, min};
-use crate::{RunState, Viewshed};
-use super::{Position, Player, TileType, State, Map};
+use crate::{CombatStats, RunState, Viewshed, WantsToMelee};
+use super::{Position, Player, State, Map};
 
 pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) {
-    let mut players = ecs.write_storage::<Player>();
-    let mut positions = ecs.write_storage::<Position>();
-    let mut viewsheds = ecs.write_storage::<Viewshed>();
+    let entities = ecs.entities();
 
     let map = ecs.fetch::<Map>();
 
-    for (_player, position, viewshed) in (&mut players, &mut positions, &mut viewsheds).join() {
+    let combat_stats = ecs.read_storage::<CombatStats>();
+    let mut players = ecs.write_storage::<Player>();
+    let mut positions = ecs.write_storage::<Position>();
+    let mut viewsheds = ecs.write_storage::<Viewshed>();
+    let mut wants_to_melee = ecs.write_storage::<WantsToMelee>();
+
+    for (entity, _player, position, viewshed) in (&entities, &mut players, &mut positions, &mut viewsheds).join() {
         let x = position.x + dx;
         let y = position.y + dy;
         let idx = map.xy_idx(x, y);
+
+        // Check if the tile contains an Entity with CombatStats
+        for potential_target in map.tile_contents[idx].iter() {
+            let target = combat_stats.get(*potential_target);
+            match target
+            {
+                // Tile contains an Entity with CombatStats, add a WantsToMelee component to the player, with the potential target as the target.
+                Some(_target) => {
+                    wants_to_melee.insert(entity, WantsToMelee { target: *potential_target }).expect("Add target failed");
+                    return;
+                }
+                None => {}
+            }
+        }
 
         // Check the tile isn't blocked
         if !map.blocked_tiles[idx] {

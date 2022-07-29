@@ -17,6 +17,7 @@ pub struct Map {
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
+    pub tile_contents: Vec<Vec<Entity>>,
 }
 
 impl Algorithm2D for Map {
@@ -80,6 +81,12 @@ impl Map {
         }
     }
 
+    pub fn clear_all_tiles_contents(&mut self) {
+        for content in self.tile_contents.iter_mut() {
+            content.clear();
+        }
+    }
+
     pub fn new_map_rooms_and_corridors() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; 80 * 50],
@@ -89,6 +96,7 @@ impl Map {
             revealed_tiles: vec![false; 80 * 50],
             visible_tiles: vec![false; 80 * 50],
             blocked_tiles: vec![false; 80 * 50],
+            tile_contents: vec![Vec::new(); 80 * 50],
         };
 
         const MAX_ROOMS: i32 = 30;
