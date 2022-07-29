@@ -3,7 +3,7 @@ use specs::prelude::*;
 
 mod components;
 mod damage_system;
-mod gamelog;
+mod game_log;
 mod gui;
 mod map;
 mod map_indexing_system;
@@ -11,6 +11,7 @@ mod melee_combat_system;
 mod monster_ai_system;
 mod player;
 mod rect;
+mod spawner;
 mod visibility_system;
 
 pub use components::*;
@@ -214,11 +215,12 @@ fn main() -> rltk::BError {
             .build();
     }
 
-    // Add resources to the ECS. (Kinda like global variables)
-    game_state.ecs.insert(gamelog::GameLog { entries: vec!["You find yourself in a dark room with no recollection of who you are.".to_string()] });
+    // Add resources to the ECS. (Kinda like global variables?)
+    game_state.ecs.insert(game_log::GameLog { entries: vec!["You find yourself in a dark room with no recollection of who you are.".to_string()] });
     game_state.ecs.insert(map);
     game_state.ecs.insert(player_entity);
     game_state.ecs.insert(Point::new(player_x, player_y));
+    game_state.ecs.insert(rltk::RandomNumberGenerator::new());
     game_state.ecs.insert(RunState::PreRun);
 
     // Run the main game loop.

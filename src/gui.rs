@@ -1,6 +1,6 @@
-use rltk::{RGB, Rltk, Console, Point};
+use rltk::{RGB, Rltk, Point};
 use specs::prelude::*;
-use crate::gamelog::GameLog;
+use crate::game_log::GameLog;
 use super::{CombatStats, Map, Name, Player, Position};
 
 pub fn draw_ui(ecs: &World, context: &mut Rltk) {

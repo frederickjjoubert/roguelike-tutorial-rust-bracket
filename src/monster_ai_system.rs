@@ -1,6 +1,6 @@
 use specs::prelude::*;
 use super::{Map, Monster, Name, Position, Viewshed};
-use rltk::{Point, console};
+use rltk::{Point};
 use crate::{RunState, WantsToMelee};
 
 pub struct MonsterAI {}
@@ -37,7 +37,7 @@ impl<'a> System<'a> for MonsterAI {
         // Only run the MonsterAI System if the RunState is the MonstersTurn
         if *run_state != RunState::MonsterTurn { return; }
 
-        for (entity, _monster, name, mut monster_position, mut monster_viewshed)
+        for (entity, _monster, _name, mut monster_position, mut monster_viewshed)
         in (&entities, &monsters, &names, &mut positions, &mut viewsheds).join() {
             if monster_viewshed.visible_tiles.contains(&*player_position) {
                 let distance_to_player = rltk::DistanceAlg::Pythagoras.distance2d(

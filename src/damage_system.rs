@@ -1,6 +1,5 @@
-use rltk::console;
 use specs::prelude::*;
-use crate::gamelog::GameLog;
+use crate::game_log::GameLog;
 use crate::Player;
 use super::{CombatStats, SufferDamage, Name};
 
