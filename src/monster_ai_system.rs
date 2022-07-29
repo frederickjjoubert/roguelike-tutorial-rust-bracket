@@ -45,7 +45,6 @@ impl<'a> System<'a> for MonsterAI {
                     *player_position,
                 );
                 if distance_to_player < 1.5 {
-                    console::log(&format!("{} sees you and attempts to strike!", { &name.name })); // console::log is a rltk helper, not std rust.
                     wants_to_melee.insert(entity, WantsToMelee { target: *player_entity }).expect("Unable to insert WantsToMelee component.");
                     return;
                 }

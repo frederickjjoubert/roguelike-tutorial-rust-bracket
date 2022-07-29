@@ -3,6 +3,8 @@ use specs::prelude::*;
 
 mod components;
 mod damage_system;
+mod gamelog;
+mod gui;
 mod map;
 mod map_indexing_system;
 mod melee_combat_system;
@@ -11,8 +13,8 @@ mod player;
 mod rect;
 mod visibility_system;
 
-use damage_system::DamageSystem;
 pub use components::*;
+use damage_system::DamageSystem;
 pub use map::*;
 use map_indexing_system::MapIndexingSystem;
 use melee_combat_system::MeleeCombatSystem;
@@ -106,14 +108,18 @@ impl GameState for State {
         // then a system is the right place to put it.
         // If it also needs access to other parts of your program,
         // it is probably better implemented on the outside - calling in.
+
+        // Draw UI
+        gui::draw_ui(&self.ecs, context);
     }
 }
 
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
-    let context = RltkBuilder::simple80x50()
+    let mut context = RltkBuilder::simple80x50()
         .with_title("Roguelike")
         .build()?;
+    context.with_post_scanlines(true);
     let mut game_state = State {
         ecs: World::new(),
     };
@@ -209,6 +215,7 @@ fn main() -> rltk::BError {
     }
 
     // Add resources to the ECS. (Kinda like global variables)
+    game_state.ecs.insert(gamelog::GameLog { entries: vec!["You find yourself in a dark room with no recollection of who you are.".to_string()] });
     game_state.ecs.insert(map);
     game_state.ecs.insert(player_entity);
     game_state.ecs.insert(Point::new(player_x, player_y));

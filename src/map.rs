@@ -3,6 +3,10 @@ use super::{Rect};
 use std::cmp::{max, min};
 use specs::prelude::*;
 
+const MAP_WIDTH: usize = 80;
+const MAP_HEIGHT: usize = 50;
+const MAP_COUNT: usize = MAP_WIDTH * MAP_HEIGHT;
+
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
     Wall,
@@ -89,14 +93,14 @@ impl Map {
 
     pub fn new_map_rooms_and_corridors() -> Map {
         let mut map = Map {
-            tiles: vec![TileType::Wall; 80 * 50],
+            tiles: vec![TileType::Wall; MAP_COUNT],
             rooms: Vec::new(),
-            width: 80,
-            height: 50,
-            revealed_tiles: vec![false; 80 * 50],
-            visible_tiles: vec![false; 80 * 50],
-            blocked_tiles: vec![false; 80 * 50],
-            tile_contents: vec![Vec::new(); 80 * 50],
+            width: MAP_WIDTH as i32,
+            height: MAP_HEIGHT as i32,
+            revealed_tiles: vec![false; MAP_COUNT],
+            visible_tiles: vec![false; MAP_COUNT],
+            blocked_tiles: vec![false; MAP_COUNT],
+            tile_contents: vec![Vec::new(); MAP_COUNT],
         };
 
         const MAX_ROOMS: i32 = 30;
