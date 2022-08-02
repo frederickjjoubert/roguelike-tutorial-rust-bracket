@@ -1,21 +1,20 @@
 use rltk::{Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use std::cmp::{max, min};
-use crate::{CombatStats, RunState, Viewshed, WantsToMelee};
-use super::{Position, Player, State, Map};
+use crate::{CombatStats, GameLog, RunState, Viewshed, WantsToMelee, WantsToPickupItem};
+use super::{Item, Position, Player, State, Map};
 
 pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) {
     let entities = ecs.entities();
-
     let map = ecs.fetch::<Map>();
-
     let combat_stats = ecs.read_storage::<CombatStats>();
     let mut players = ecs.write_storage::<Player>();
     let mut positions = ecs.write_storage::<Position>();
     let mut viewsheds = ecs.write_storage::<Viewshed>();
     let mut wants_to_melee = ecs.write_storage::<WantsToMelee>();
 
-    for (entity, _player, position, viewshed) in (&entities, &mut players, &mut positions, &mut viewsheds).join() {
+    for (entity, _player, position, viewshed)
+    in (&entities, &mut players, &mut positions, &mut viewsheds).join() {
         let x = position.x + dx;
         let y = position.y + dy;
         let idx = map.xy_idx(x, y);
@@ -47,6 +46,39 @@ pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) {
     }
 }
 
+fn try_pickup_item(ecs: &mut World) {
+    // Call into ECS
+    let entities = ecs.entities();
+    let player_position = ecs.fetch::<Point>();
+    let player_entity = ecs.fetch::<Entity>();
+    let mut game_log = ecs.fetch_mut::<GameLog>();
+    let items = ecs.read_storage::<Item>();
+    let positions = ecs.read_storage::<Position>();
+
+    // Try to find an item to pick up.
+    let mut target_item: Option<Entity> = None;
+    for (item_entity, _item, position) in (&entities, &items, &positions).join() {
+        if position.x == player_position.x && position.y == player_position.y {
+            target_item = Some(item_entity);
+        }
+    }
+
+    // Check if we found an item to pick up.
+    match target_item {
+        None => game_log.entries.push("There is nothing to pick up.".to_string()),
+        Some(item) => {
+            let mut wants_to_pickup_item = ecs.write_storage::<WantsToPickupItem>();
+            wants_to_pickup_item.insert(
+                *player_entity,
+                WantsToPickupItem {
+                    collected_by: *player_entity,
+                    item,
+                },
+            ).expect("Unable to insert WantsToPickupItem component.");
+        }
+    }
+}
+
 pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
     match context.key {
         None => {
@@ -54,6 +86,7 @@ pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
         } // No Input, Do Nothing.
         Some(key) => {
             match key {
+                // === Movement ===
                 // Cardinal Directions
                 VirtualKeyCode::Left |
                 VirtualKeyCode::Numpad4 |
@@ -84,6 +117,14 @@ pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
                 VirtualKeyCode::Numpad1 |
                 VirtualKeyCode::B => try_move_player(-1, 1, &mut game_state.ecs),
 
+                // === Interactions ===
+                // Item Pickup
+                VirtualKeyCode::G => try_pickup_item(&mut game_state.ecs),
+
+                // === UI ===
+                VirtualKeyCode::I => return RunState::ShowInventory,
+                VirtualKeyCode::D => return RunState::ShowDropItem,
+
                 _ => {
                     return RunState::AwaitingInput;
                 } // Anything else, Do Nothing.
@@ -92,4 +133,6 @@ pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
     }
     RunState::PlayerTurn
 }
+
+
 

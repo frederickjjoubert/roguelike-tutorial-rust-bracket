@@ -5,6 +5,7 @@ mod components;
 mod damage_system;
 mod game_log;
 mod gui;
+mod inventory_system;
 mod map;
 mod map_indexing_system;
 mod melee_combat_system;
@@ -16,6 +17,7 @@ mod visibility_system;
 
 pub use components::*;
 use damage_system::DamageSystem;
+pub use game_log::GameLog;
 pub use map::*;
 use map_indexing_system::MapIndexingSystem;
 use melee_combat_system::MeleeCombatSystem;
@@ -23,6 +25,7 @@ use monster_ai_system::MonsterAI;
 use player::*;
 pub use rect::Rect;
 pub use visibility_system::VisibilitySystem;
+use crate::inventory_system::{ItemCollectionSystem, ItemDropSystem, PotionUseSystem};
 
 pub struct State {
     pub ecs: World,
@@ -34,6 +37,8 @@ pub enum RunState {
     PreRun,
     PlayerTurn,
     MonsterTurn,
+    ShowInventory,
+    ShowDropItem,
 }
 
 impl State {
@@ -48,22 +53,51 @@ impl State {
         melee_combat_system.run_now(&self.ecs);
         let mut damage_system = DamageSystem {};
         damage_system.run_now(&self.ecs);
+        let mut item_collection_system = ItemCollectionSystem {};
+        item_collection_system.run_now(&self.ecs);
+        let mut potion_use_system = PotionUseSystem {};
+        potion_use_system.run_now(&self.ecs);
+        let mut drop_items = ItemDropSystem {};
+        drop_items.run_now(&self.ecs);
         self.ecs.maintain(); // Tells Specs to apply any changes that are queued up.
     }
 }
 
 impl GameState for State {
     fn tick(&mut self, context: &mut Rltk) {
-        context.cls(); // CLS: Clear the Screen.
+        context.cls(); // Clear the Screen.
 
+        // === Render Loop ===
+
+        // Render the Map
+        draw_map(&self.ecs, context);
+
+        {
+            // Render Entities: Here we're calling into the ECS to perform the Rendering
+            let positions = self.ecs.read_storage::<Position>();
+            let renderers = self.ecs.read_storage::<Renderer>();
+            let map = self.ecs.fetch::<Map>();
+            for (position, renderer) in (&positions, &renderers).join() {
+                let index = map.xy_idx(position.x, position.y);
+                if map.visible_tiles[index] {
+                    context.set(position.x, position.y, renderer.fg, renderer.bg, renderer.glyph)
+                }
+            }
+
+            // Draw UI
+            gui::draw_ui(&self.ecs, context);
+        }
+
+        // === Input Loop ===
         // Get RunState resource
         let current_run_state = *self.ecs.fetch::<RunState>();
-        let new_run_state: RunState;
+        let mut new_run_state = current_run_state;
 
         // Match on RunState
         match current_run_state {
             RunState::PreRun => {
                 self.run_systems();
+                self.ecs.maintain();
                 new_run_state = RunState::AwaitingInput;
             }
             RunState::AwaitingInput => {
@@ -73,11 +107,48 @@ impl GameState for State {
             RunState::PlayerTurn => {
                 // Here the ECS is calling out to our functions and components.
                 self.run_systems(); // Within run_systems(...)
+                self.ecs.maintain();
                 new_run_state = RunState::MonsterTurn;
             }
             RunState::MonsterTurn => {
                 self.run_systems();
+                self.ecs.maintain();
                 new_run_state = RunState::AwaitingInput;
+            }
+            RunState::ShowInventory => {
+                let result = gui::show_inventory(self, context);
+                let item_menu_result = result.0;
+
+                match item_menu_result {
+                    gui::ItemMenuResult::Cancel => new_run_state = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {} // Do Nothing
+                    gui::ItemMenuResult::Selected => {
+                        // We're unwrapping here because if we have ItemMenuResult::Selected we know there must be an item from show_inventory(...)
+                        let item_entity = result.1.unwrap();
+                        let mut wants_to_drink_potion = self.ecs.write_storage::<WantsToDrinkPotion>();
+                        let player_entity = self.ecs.fetch::<Entity>();
+                        wants_to_drink_potion.insert(
+                            *player_entity,
+                            WantsToDrinkPotion {
+                                potion: item_entity
+                            },
+                        ).expect("Unable to insert WantsToDrinkPotion component.");
+                        new_run_state = RunState::PlayerTurn;
+                    }
+                }
+            }
+            RunState::ShowDropItem => {
+                let result = gui::drop_item_menu(self, context);
+                match result.0 {
+                    gui::ItemMenuResult::Cancel => new_run_state = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let item_entity = result.1.unwrap();
+                        let mut intent = self.ecs.write_storage::<WantsToDropItem>();
+                        intent.insert(*self.ecs.fetch::<Entity>(), WantsToDropItem { item: item_entity }).expect("Unable to insert intent");
+                        new_run_state = RunState::PlayerTurn;
+                    }
+                }
             }
         }
 
@@ -89,29 +160,6 @@ impl GameState for State {
 
         // Clean up the dead.
         damage_system::delete_the_dead(&mut self.ecs);
-
-        // Render Loop
-        // Render the Map
-        draw_map(&self.ecs, context);
-        // Render Entities: Here we're calling into the ECS to perform the Rendering
-        let positions = self.ecs.read_storage::<Position>();
-        let renderers = self.ecs.read_storage::<Renderer>();
-        let map = self.ecs.fetch::<Map>();
-        for (position, renderer) in (&positions, &renderers).join() {
-            let index = map.xy_idx(position.x, position.y);
-            if map.visible_tiles[index] {
-                context.set(position.x, position.y, renderer.fg, renderer.bg, renderer.glyph)
-            }
-        }
-
-        // ^ It can be a tough judgment call on which to use.
-        // If your system just needs data from the ECS,
-        // then a system is the right place to put it.
-        // If it also needs access to other parts of your program,
-        // it is probably better implemented on the outside - calling in.
-
-        // Draw UI
-        gui::draw_ui(&self.ecs, context);
     }
 }
 
@@ -120,7 +168,7 @@ fn main() -> rltk::BError {
     let mut context = RltkBuilder::simple80x50()
         .with_title("Roguelike")
         .build()?;
-    context.with_post_scanlines(true);
+    context.with_post_scanlines(true); // Post Processing Effect.
     let mut game_state = State {
         ecs: World::new(),
     };
@@ -128,6 +176,7 @@ fn main() -> rltk::BError {
     // Register Components with ECS.
     game_state.ecs.register::<BlocksTile>();
     game_state.ecs.register::<CombatStats>();
+    game_state.ecs.register::<InBackpack>();
     game_state.ecs.register::<Item>();
     game_state.ecs.register::<Monster>();
     game_state.ecs.register::<Name>();
@@ -137,7 +186,10 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Renderer>();
     game_state.ecs.register::<SufferDamage>();
     game_state.ecs.register::<Viewshed>();
+    game_state.ecs.register::<WantsToDrinkPotion>();
+    game_state.ecs.register::<WantsToDropItem>();
     game_state.ecs.register::<WantsToMelee>();
+    game_state.ecs.register::<WantsToPickupItem>();
 
     // Generate the Map
     let map = Map::new_map_rooms_and_corridors();
@@ -157,7 +209,9 @@ fn main() -> rltk::BError {
     };
 
     // Add resources to the ECS. (Kinda like global variables?)
-    game_state.ecs.insert(game_log::GameLog { entries: vec!["You find yourself in a dark room with no recollection of who you are.".to_string()] });
+    game_state.ecs.insert(game_log::GameLog {
+        entries: vec!["You find yourself in a dark room with no recollection of who you are.".to_string()]
+    });
     game_state.ecs.insert(map);
     game_state.ecs.insert(player_entity);
     game_state.ecs.insert(Point::new(player_x, player_y));

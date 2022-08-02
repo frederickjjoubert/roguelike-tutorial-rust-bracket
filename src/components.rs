@@ -14,6 +14,11 @@ pub struct CombatStats {
     pub power: i32,
 }
 
+#[derive(Component, Debug, Clone)]
+pub struct InBackpack {
+    pub owner: Entity,
+}
+
 #[derive(Component, Debug)]
 pub struct Item {}
 
@@ -70,9 +75,27 @@ pub struct Viewshed {
     pub dirty: bool,
 }
 
+#[derive(Component, Debug)]
+pub struct WantsToDrinkPotion {
+    pub potion: Entity,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct WantsToDropItem {
+    pub item: Entity,
+}
+
 #[derive(Component, Debug, Clone)]
 pub struct WantsToMelee {
     pub target: Entity,
+}
+
+// This component indicates intent.
+// 'collected_by' wants to pick up 'item'.
+#[derive(Component, Debug, Clone)]
+pub struct WantsToPickupItem {
+    pub collected_by: Entity,
+    pub item: Entity,
 }
 
 

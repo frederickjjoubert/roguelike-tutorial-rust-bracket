@@ -1,6 +1,6 @@
 # Roguelike Tutorial by Bracket
 
-This is my code following the open source roguelike tutorial series by [Herbert Wolverson](https://github.com/thebracket)
+This is my code following the open source roguelike tutorial series by [Herbert Wolverson](https://github.com/thebracket).
 
 The tutorial page is [here](https://bfnightly.bracketproductions.com/rustbook/chapter_0.html).
 
