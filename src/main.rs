@@ -73,11 +73,18 @@ impl GameState for State {
         draw_map(&self.ecs, context);
 
         {
+            let map = self.ecs.fetch::<Map>();
             // Render Entities: Here we're calling into the ECS to perform the Rendering
             let positions = self.ecs.read_storage::<Position>();
             let renderers = self.ecs.read_storage::<Renderer>();
-            let map = self.ecs.fetch::<Map>();
-            for (position, renderer) in (&positions, &renderers).join() {
+            let mut render_data = (&positions, &renderers)
+                .join()
+                .collect::<Vec<_>>();
+            render_data.sort_by(
+                |&a, &b|
+                    b.1.render_order.cmp(&a.1.render_order)
+            );
+            for (position, renderer) in render_data.iter() {
                 let index = map.xy_idx(position.x, position.y);
                 if map.visible_tiles[index] {
                     context.set(position.x, position.y, renderer.fg, renderer.bg, renderer.glyph)

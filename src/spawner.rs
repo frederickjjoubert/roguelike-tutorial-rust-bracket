@@ -76,6 +76,7 @@ fn spawn_health_potion(ecs: &mut World, x: i32, y: i32) {
             glyph: rltk::to_cp437('¡'),
             fg: RGB::named(rltk::GREEN),
             bg: RGB::named(rltk::BLACK),
+            render_order: 2,
         })
         .build();
 }
@@ -98,6 +99,7 @@ pub fn spawn_player(ecs: &mut World, player_x: i32, player_y: i32) -> Entity {
             glyph: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
+            render_order: 0,
         })
         .with(Viewshed {
             visible_tiles: Vec::new(),
@@ -158,6 +160,7 @@ fn spawn_monster<S: ToString>(ecs: &mut World, x: i32, y: i32, glyph: rltk::Font
             glyph,
             fg: RGB::named(rltk::RED),
             bg: RGB::named(rltk::BLACK),
+            render_order: 1,
         })
         .with(Viewshed {
             visible_tiles: Vec::new(),

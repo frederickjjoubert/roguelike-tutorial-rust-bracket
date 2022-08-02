@@ -106,33 +106,47 @@ pub struct ItemDropSystem {}
 
 impl<'a> System<'a> for ItemDropSystem {
     #[allow(clippy::type_complexity)]
-    type SystemData = (ReadExpect<'a, Entity>,
-                       WriteExpect<'a, GameLog>,
-                       Entities<'a>,
-                       WriteStorage<'a, WantsToDropItem>,
-                       ReadStorage<'a, Name>,
-                       WriteStorage<'a, Position>,
-                       WriteStorage<'a, InBackpack>
+    type SystemData = (
+        Entities<'a>,
+        ReadExpect<'a, Entity>,
+        WriteExpect<'a, GameLog>,
+        ReadStorage<'a, Name>,
+        WriteStorage<'a, InBackpack>,
+        WriteStorage<'a, Position>,
+        WriteStorage<'a, WantsToDropItem>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (player_entity, mut gamelog, entities, mut wants_drop, names, mut positions, mut backpack) = data;
+        let (entities,
+            player_entity,
+            mut game_log,
+            names,
+            mut in_backpacks,
+            mut positions,
+            mut wants_to_drop_items) = data;
 
-        for (entity, to_drop) in (&entities, &wants_drop).join() {
+        for (entity, wants_to_drop_item) in (&entities, &wants_to_drop_items).join() {
             let mut dropper_pos: Position = Position { x: 0, y: 0 };
             {
                 let dropped_pos = positions.get(entity).unwrap();
                 dropper_pos.x = dropped_pos.x;
                 dropper_pos.y = dropped_pos.y;
             }
-            positions.insert(to_drop.item, Position { x: dropper_pos.x, y: dropper_pos.y }).expect("Unable to insert position");
-            backpack.remove(to_drop.item);
+            positions.insert(
+                wants_to_drop_item.item,
+                Position { x: dropper_pos.x, y: dropper_pos.y },
+            ).expect("Unable to insert position");
+
+
+            in_backpacks.remove(wants_to_drop_item.item);
 
             if entity == *player_entity {
-                gamelog.entries.push(format!("You drop the {}.", names.get(to_drop.item).unwrap().name));
+                let item_name = &names.get(wants_to_drop_item.item).unwrap().name;
+                game_log.entries.push(format!("You drop the {}.", item_name));
             }
         }
 
-        wants_drop.clear();
+        // Clear all WantsToDropItem components for next tick.
+        wants_to_drop_items.clear();
     }
 }
