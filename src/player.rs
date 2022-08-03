@@ -1,10 +1,75 @@
 use rltk::{Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use std::cmp::{max, min};
-use crate::{CombatStats, GameLog, RunState, Viewshed, WantsToMelee, WantsToPickupItem};
-use super::{Item, Position, Player, State, Map};
+use super::{
+    CombatStats,
+    GameLog,
+    Item,
+    Map,
+    Player,
+    Position,
+    RunState,
+    State,
+    Viewshed,
+    WantsToMelee,
+    WantsToPickupItem};
 
-pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) {
+pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
+    match context.key {
+        None => {
+            return RunState::AwaitingInput;
+        } // No Input, Do Nothing.
+        Some(key) => {
+            match key {
+                // === Movement ===
+                // Cardinal Directions
+                VirtualKeyCode::Left |
+                VirtualKeyCode::Numpad4 |
+                VirtualKeyCode::H => try_move_player(-1, 0, &mut game_state.ecs),
+
+                VirtualKeyCode::Right |
+                VirtualKeyCode::Numpad6 |
+                VirtualKeyCode::L => try_move_player(1, 0, &mut game_state.ecs),
+
+                VirtualKeyCode::Up |
+                VirtualKeyCode::Numpad8 |
+                VirtualKeyCode::K => try_move_player(0, -1, &mut game_state.ecs),
+
+                VirtualKeyCode::Down |
+                VirtualKeyCode::Numpad2 |
+                VirtualKeyCode::J => try_move_player(0, 1, &mut game_state.ecs),
+
+                // Diagonals Directions
+                VirtualKeyCode::Numpad9 |
+                VirtualKeyCode::U => try_move_player(1, -1, &mut game_state.ecs),
+
+                VirtualKeyCode::Numpad7 |
+                VirtualKeyCode::Y => try_move_player(-1, -1, &mut game_state.ecs),
+
+                VirtualKeyCode::Numpad3 |
+                VirtualKeyCode::N => try_move_player(1, 1, &mut game_state.ecs),
+
+                VirtualKeyCode::Numpad1 |
+                VirtualKeyCode::B => try_move_player(-1, 1, &mut game_state.ecs),
+
+                // === Interactions ===
+                // Item Pickup
+                VirtualKeyCode::G => try_pickup_item(&mut game_state.ecs),
+
+                // === UI ===
+                VirtualKeyCode::I => return RunState::ShowInventory,
+                VirtualKeyCode::D => return RunState::ShowDropItem,
+
+                _ => {
+                    return RunState::AwaitingInput;
+                } // Anything else, Do Nothing.
+            }
+        }
+    }
+    RunState::PlayerTurn
+}
+
+fn try_move_player(dx: i32, dy: i32, ecs: &mut World) {
     let entities = ecs.entities();
     let map = ecs.fetch::<Map>();
     let combat_stats = ecs.read_storage::<CombatStats>();
@@ -79,60 +144,6 @@ fn try_pickup_item(ecs: &mut World) {
     }
 }
 
-pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
-    match context.key {
-        None => {
-            return RunState::AwaitingInput;
-        } // No Input, Do Nothing.
-        Some(key) => {
-            match key {
-                // === Movement ===
-                // Cardinal Directions
-                VirtualKeyCode::Left |
-                VirtualKeyCode::Numpad4 |
-                VirtualKeyCode::H => try_move_player(-1, 0, &mut game_state.ecs),
-
-                VirtualKeyCode::Right |
-                VirtualKeyCode::Numpad6 |
-                VirtualKeyCode::L => try_move_player(1, 0, &mut game_state.ecs),
-
-                VirtualKeyCode::Up |
-                VirtualKeyCode::Numpad8 |
-                VirtualKeyCode::K => try_move_player(0, -1, &mut game_state.ecs),
-
-                VirtualKeyCode::Down |
-                VirtualKeyCode::Numpad2 |
-                VirtualKeyCode::J => try_move_player(0, 1, &mut game_state.ecs),
-
-                // Diagonals Directions
-                VirtualKeyCode::Numpad9 |
-                VirtualKeyCode::U => try_move_player(1, -1, &mut game_state.ecs),
-
-                VirtualKeyCode::Numpad7 |
-                VirtualKeyCode::Y => try_move_player(-1, -1, &mut game_state.ecs),
-
-                VirtualKeyCode::Numpad3 |
-                VirtualKeyCode::N => try_move_player(1, 1, &mut game_state.ecs),
-
-                VirtualKeyCode::Numpad1 |
-                VirtualKeyCode::B => try_move_player(-1, 1, &mut game_state.ecs),
-
-                // === Interactions ===
-                // Item Pickup
-                VirtualKeyCode::G => try_pickup_item(&mut game_state.ecs),
-
-                // === UI ===
-                VirtualKeyCode::I => return RunState::ShowInventory,
-                VirtualKeyCode::D => return RunState::ShowDropItem,
-
-                _ => {
-                    return RunState::AwaitingInput;
-                } // Anything else, Do Nothing.
-            }
-        }
-    }
-    RunState::PlayerTurn
-}
 
 
 

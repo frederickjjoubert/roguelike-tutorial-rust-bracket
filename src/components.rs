@@ -14,6 +14,11 @@ pub struct CombatStats {
     pub power: i32,
 }
 
+// This component is a 'flag' component.
+// Having this item indicates that using it destroys it (consumed on use).
+#[derive(Component, Debug)]
+pub struct Consumable {}
+
 #[derive(Component, Debug, Clone)]
 pub struct InBackpack {
     pub owner: Entity,
@@ -34,7 +39,7 @@ pub struct Name {
 pub struct Player {}
 
 #[derive(Component, Debug)]
-pub struct Potion {
+pub struct ProvidesHealing {
     pub heal_amount: i32,
 }
 
@@ -97,6 +102,12 @@ pub struct WantsToMelee {
 pub struct WantsToPickupItem {
     pub collected_by: Entity,
     pub item: Entity,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct WantsToUseItem {
+    pub item: Entity,
+    pub target: Option<rltk::Point>,
 }
 
 

@@ -1,7 +1,20 @@
 use rltk::{RGB, RandomNumberGenerator};
 use specs::prelude::*;
-use crate::MAP_WIDTH;
-use super::{BlocksTile, CombatStats, Item, Monster, Name, Player, Potion, Position, Rect, Renderer, Viewshed};
+use super::{
+    BlocksTile,
+    CombatStats,
+    Consumable,
+    Item,
+    MAP_WIDTH,
+    Monster,
+    Name,
+    Player,
+    Position,
+    ProvidesHealing,
+    Rect,
+    Renderer,
+    Viewshed,
+};
 
 const MAX_MONSTERS: i32 = 4;
 const MAX_ITEMS: i32 = 2;
@@ -66,12 +79,13 @@ pub fn fill_room(ecs: &mut World, room: &Rect) {
 fn spawn_health_potion(ecs: &mut World, x: i32, y: i32) {
     ecs
         .create_entity()
+        .with(Consumable {})
         .with(Item {})
         .with(Name { name: "Health Potion".to_string() })
-        .with(Potion {
+        .with(Position { x, y })
+        .with(ProvidesHealing {
             heal_amount: 8
         })
-        .with(Position { x, y })
         .with(Renderer {
             glyph: rltk::to_cp437('¡'),
             fg: RGB::named(rltk::GREEN),

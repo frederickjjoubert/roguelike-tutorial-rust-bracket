@@ -25,7 +25,7 @@ use monster_ai_system::MonsterAI;
 use player::*;
 pub use rect::Rect;
 pub use visibility_system::VisibilitySystem;
-use crate::inventory_system::{ItemCollectionSystem, ItemDropSystem, PotionUseSystem};
+use crate::inventory_system::{ItemCollectionSystem, ItemDropSystem, ItemUseSystem};
 
 pub struct State {
     pub ecs: World,
@@ -55,8 +55,8 @@ impl State {
         damage_system.run_now(&self.ecs);
         let mut item_collection_system = ItemCollectionSystem {};
         item_collection_system.run_now(&self.ecs);
-        let mut potion_use_system = PotionUseSystem {};
-        potion_use_system.run_now(&self.ecs);
+        let mut item_use_system = ItemUseSystem {};
+        item_use_system.run_now(&self.ecs);
         let mut drop_items = ItemDropSystem {};
         drop_items.run_now(&self.ecs);
         self.ecs.maintain(); // Tells Specs to apply any changes that are queued up.
@@ -132,14 +132,15 @@ impl GameState for State {
                     gui::ItemMenuResult::Selected => {
                         // We're unwrapping here because if we have ItemMenuResult::Selected we know there must be an item from show_inventory(...)
                         let item_entity = result.1.unwrap();
-                        let mut wants_to_drink_potion = self.ecs.write_storage::<WantsToDrinkPotion>();
+                        let mut wants_to_use_item_components = self.ecs.write_storage::<WantsToUseItem>();
                         let player_entity = self.ecs.fetch::<Entity>();
-                        wants_to_drink_potion.insert(
+                        wants_to_use_item_components.insert(
                             *player_entity,
-                            WantsToDrinkPotion {
-                                potion: item_entity
+                            WantsToUseItem {
+                                item: item_entity,
+                                target: None,
                             },
-                        ).expect("Unable to insert WantsToDrinkPotion component.");
+                        ).expect("Unable to insert WantsToUseItem component.");
                         new_run_state = RunState::PlayerTurn;
                     }
                 }
@@ -183,13 +184,14 @@ fn main() -> rltk::BError {
     // Register Components with ECS.
     game_state.ecs.register::<BlocksTile>();
     game_state.ecs.register::<CombatStats>();
+    game_state.ecs.register::<Consumable>();
     game_state.ecs.register::<InBackpack>();
     game_state.ecs.register::<Item>();
     game_state.ecs.register::<Monster>();
     game_state.ecs.register::<Name>();
     game_state.ecs.register::<Player>();
-    game_state.ecs.register::<Potion>();
     game_state.ecs.register::<Position>();
+    game_state.ecs.register::<ProvidesHealing>();
     game_state.ecs.register::<Renderer>();
     game_state.ecs.register::<SufferDamage>();
     game_state.ecs.register::<Viewshed>();
@@ -197,6 +199,8 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<WantsToDropItem>();
     game_state.ecs.register::<WantsToMelee>();
     game_state.ecs.register::<WantsToPickupItem>();
+    game_state.ecs.register::<WantsToUseItem>();
+
 
     // Generate the Map
     let map = Map::new_map_rooms_and_corridors();
