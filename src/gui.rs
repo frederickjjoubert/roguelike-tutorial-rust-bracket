@@ -1,7 +1,16 @@
 use rltk::{RGB, Rltk, Point, VirtualKeyCode};
 use specs::prelude::*;
-use crate::InBackpack;
-use super::{CombatStats, GameLog, Map, Name, Player, Position, State};
+use super::{
+    CombatStats,
+    GameLog,
+    InBackpack,
+    Map,
+    Name,
+    Player,
+    Position,
+    State,
+    Viewshed,
+};
 
 pub fn draw_ui(ecs: &World, context: &mut Rltk) {
     context.draw_box(0, 43, 79, 6, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
@@ -99,7 +108,11 @@ fn draw_tooltips(ecs: &World, context: &mut Rltk) {
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
-pub enum ItemMenuResult { Cancel, NoResponse, Selected }
+pub enum ItemMenuResult {
+    Cancel,
+    NoResponse,
+    Selected,
+}
 
 pub fn show_inventory(game_state: &mut State, context: &mut Rltk) -> (ItemMenuResult, Option<Entity>) {
     let entities = game_state.ecs.entities();
@@ -240,4 +253,52 @@ pub fn drop_item_menu(gs: &mut State, context: &mut Rltk) -> (ItemMenuResult, Op
             }
         }
     }
+}
+
+pub fn ranged_target(game_state: &mut State, context: &mut Rltk, range: i32) -> (ItemMenuResult, Option<Point>) {
+    let player_entity = game_state.ecs.fetch::<Entity>();
+    let player_position = game_state.ecs.fetch::<Point>();
+    let viewsheds = game_state.ecs.read_storage::<Viewshed>();
+
+    context.print_color(5, 0, RGB::named(rltk::YELLOW), RGB::named(rltk::BLACK), "Select Target:");
+
+    // Highlight available target cells
+    let mut available_cells = Vec::new();
+    let optional_viewshed = viewsheds.get(*player_entity);
+    if let Some(player_viewshed) = optional_viewshed {
+        // We have a viewshed
+        for position in player_viewshed.visible_tiles.iter() {
+            let distance = rltk::DistanceAlg::Pythagoras.distance2d(*player_position, *position);
+            if distance <= range as f32 {
+                context.set_bg(position.x, position.y, RGB::named(rltk::BLUE));
+                available_cells.push(position);
+            }
+        }
+    } else {
+        return (ItemMenuResult::Cancel, None);
+    }
+
+    // Draw mouse cursor
+    let mouse_position = context.mouse_pos();
+    let (mouse_x, mouse_y) = mouse_position;
+    let mut is_valid_target = false;
+    for idx in available_cells.iter() {
+        if idx.x == mouse_x && idx.y == mouse_y
+        {
+            is_valid_target = true;
+        }
+    }
+    if is_valid_target {
+        context.set_bg(mouse_x, mouse_y, RGB::named(rltk::CYAN));
+        if context.left_click {
+            return (ItemMenuResult::Selected, Some(Point::new(mouse_x, mouse_y)));
+        }
+    } else {
+        context.set_bg(mouse_x, mouse_y, RGB::named(rltk::RED));
+        if context.left_click {
+            return (ItemMenuResult::Cancel, None);
+        }
+    }
+
+    (ItemMenuResult::NoResponse, None)
 }

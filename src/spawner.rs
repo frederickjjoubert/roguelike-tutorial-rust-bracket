@@ -4,6 +4,7 @@ use super::{
     BlocksTile,
     CombatStats,
     Consumable,
+    InflictsDamage,
     Item,
     MAP_WIDTH,
     Monster,
@@ -11,13 +12,15 @@ use super::{
     Player,
     Position,
     ProvidesHealing,
+    Ranged,
     Rect,
     Renderer,
     Viewshed,
 };
 
 const MAX_MONSTERS: i32 = 4;
-const MAX_ITEMS: i32 = 2;
+const MAX_ITEMS: i32 = 8;
+// const MAX_ITEMS: i32 = 2;
 
 pub fn fill_room(ecs: &mut World, room: &Rect) {
     let mut monster_spawn_points: Vec<usize> = Vec::new();
@@ -72,8 +75,46 @@ pub fn fill_room(ecs: &mut World, room: &Rect) {
     for index in item_spawn_points.iter() {
         let x = (*index % MAP_WIDTH) as i32;
         let y = (*index / MAP_WIDTH) as i32;
-        spawn_health_potion(ecs, x, y);
+        spawn_random_item(ecs, x, y);
     }
+}
+
+fn spawn_random_item(ecs: &mut World, x: i32, y: i32) {
+    let roll: i32;
+    {
+        let mut random_number_generator = ecs.write_resource::<RandomNumberGenerator>();
+        roll = random_number_generator.roll_dice(1, 2);
+    }
+    match roll {
+        1 => {
+            spawn_health_potion(ecs, x, y);
+        }
+        _ => {
+            spawn_magic_missile_scroll(ecs, x, y);
+        }
+    }
+}
+
+fn spawn_magic_missile_scroll(ecs: &mut World, x: i32, y: i32) {
+    ecs
+        .create_entity()
+        .with(Consumable {})
+        .with(InflictsDamage {
+            damage: 8
+        })
+        .with(Item {})
+        .with(Name { name: "Magic Missile Scroll".to_string() })
+        .with(Position { x, y })
+        .with(Ranged {
+            range: 6,
+        })
+        .with(Renderer {
+            glyph: rltk::to_cp437(')'),
+            fg: RGB::named(rltk::CYAN),
+            bg: RGB::named(rltk::BLACK),
+            render_order: 2,
+        })
+        .build();
 }
 
 fn spawn_health_potion(ecs: &mut World, x: i32, y: i32) {

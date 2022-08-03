@@ -1,9 +1,11 @@
 use specs::prelude::*;
+use crate::{InflictsDamage, SufferDamage};
 use super::{
     CombatStats,
     Consumable,
     GameLog,
     InBackpack,
+    Map,
     Name,
     Position,
     ProvidesHealing,
@@ -66,11 +68,14 @@ impl<'a> System<'a> for ItemUseSystem {
     type SystemData = (
         Entities<'a>,
         ReadExpect<'a, Entity>,
+        ReadExpect<'a, Map>,
         WriteExpect<'a, GameLog>,
         ReadStorage<'a, Consumable>,
+        ReadStorage<'a, InflictsDamage>,
         ReadStorage<'a, Name>,
         ReadStorage<'a, ProvidesHealing>,
         WriteStorage<'a, CombatStats>,
+        WriteStorage<'a, SufferDamage>,
         WriteStorage<'a, WantsToUseItem>,
     );
 
@@ -78,18 +83,21 @@ impl<'a> System<'a> for ItemUseSystem {
         let (
             entities,
             player_entity,
+            map,
             mut game_log,
             consumables,
+            inflicts_damage_components,
             names,
             provides_healing_components,
             mut combat_stats_components,
+            mut suffer_damage_components,
             mut wants_to_use_item_components
         ) = data;
 
         for (entity, wants_to_use_item_component, combat_stats_component)
         in (&entities, &wants_to_use_item_components, &mut combat_stats_components).join()
         {
-            // let mut item_used = true;
+            let mut is_item_used = true;
             let item_entity = wants_to_use_item_component.item;
 
             // Healing Items
@@ -106,6 +114,38 @@ impl<'a> System<'a> for ItemUseSystem {
                     if entity == *player_entity {
                         let potion_name = &names.get(wants_to_use_item_component.item).unwrap().name;
                         game_log.entries.push(format!("You drink the {}, healing {} hp.", potion_name, healing_item.heal_amount));
+                    }
+                }
+            }
+
+            // Inflicts Damage Items
+            let inflicts_damage_item = inflicts_damage_components.get(item_entity);
+            match inflicts_damage_item {
+                None => {}
+                Some(inflicts_damage_item) => {
+                    let target_point = wants_to_use_item_component.target.unwrap();
+                    let index = map.xy_idx(target_point.x, target_point.y);
+                    is_item_used = false;
+                    for mob in map.tile_contents[index].iter() {
+                        // Add damage
+                        SufferDamage::new_damage(
+                            &mut suffer_damage_components,
+                            *mob,
+                            inflicts_damage_item.damage,
+                        );
+                        if entity == *player_entity {
+                            let mob_name = names.get(*mob).unwrap();
+                            let item_name = names.get(item_entity).unwrap();
+                            game_log.entries.push(
+                                format!(
+                                    "You use {} on {}, inflicting {} damage.",
+                                    item_name.name,
+                                    mob_name.name,
+                                    inflicts_damage_item.damage,
+                                )
+                            );
+                        }
+                        is_item_used = true;
                     }
                 }
             }

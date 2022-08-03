@@ -25,6 +25,11 @@ pub struct InBackpack {
 }
 
 #[derive(Component, Debug)]
+pub struct InflictsDamage {
+    pub damage: i32,
+}
+
+#[derive(Component, Debug)]
 pub struct Item {}
 
 #[derive(Component, Debug)]
@@ -47,6 +52,11 @@ pub struct ProvidesHealing {
 pub struct Position {
     pub x: i32,
     pub y: i32,
+}
+
+#[derive(Component, Debug)]
+pub struct Ranged {
+    pub range: i32,
 }
 
 #[derive(Component)]

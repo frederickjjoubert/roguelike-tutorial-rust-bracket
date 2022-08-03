@@ -34,11 +34,15 @@ pub struct State {
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
     AwaitingInput,
+    MonsterTurn,
     PreRun,
     PlayerTurn,
-    MonsterTurn,
-    ShowInventory,
     ShowDropItem,
+    ShowInventory,
+    ShowTargeting {
+        range: i32,
+        item: Entity,
+    },
 }
 
 impl State {
@@ -132,16 +136,28 @@ impl GameState for State {
                     gui::ItemMenuResult::Selected => {
                         // We're unwrapping here because if we have ItemMenuResult::Selected we know there must be an item from show_inventory(...)
                         let item_entity = result.1.unwrap();
-                        let mut wants_to_use_item_components = self.ecs.write_storage::<WantsToUseItem>();
-                        let player_entity = self.ecs.fetch::<Entity>();
-                        wants_to_use_item_components.insert(
-                            *player_entity,
-                            WantsToUseItem {
+
+                        // Check if we have Ranged component
+                        let ranged_components = self.ecs.read_storage::<Ranged>();
+                        let possible_ranged_item = ranged_components.get(item_entity);
+                        if let Some(ranged_item) = possible_ranged_item {
+                            new_run_state = RunState::ShowTargeting {
+                                range: ranged_item.range,
                                 item: item_entity,
-                                target: None,
-                            },
-                        ).expect("Unable to insert WantsToUseItem component.");
-                        new_run_state = RunState::PlayerTurn;
+                            }
+                        } else {
+                            // It must be a non-ranged item, i.e. Health Potion (since that's all we have right now)
+                            let player_entity = self.ecs.fetch::<Entity>();
+                            let mut wants_to_use_item_components = self.ecs.write_storage::<WantsToUseItem>();
+                            wants_to_use_item_components.insert(
+                                *player_entity,
+                                WantsToUseItem {
+                                    item: item_entity,
+                                    target: None,
+                                },
+                            ).expect("Unable to insert WantsToUseItem component.");
+                            new_run_state = RunState::PlayerTurn;
+                        }
                     }
                 }
             }
@@ -154,6 +170,25 @@ impl GameState for State {
                         let item_entity = result.1.unwrap();
                         let mut intent = self.ecs.write_storage::<WantsToDropItem>();
                         intent.insert(*self.ecs.fetch::<Entity>(), WantsToDropItem { item: item_entity }).expect("Unable to insert intent");
+                        new_run_state = RunState::PlayerTurn;
+                    }
+                }
+            }
+            RunState::ShowTargeting { range, item } => {
+                let result = gui::ranged_target(self, context, range);
+                match result.0 {
+                    gui::ItemMenuResult::Cancel => new_run_state = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let player_entity = self.ecs.fetch::<Entity>();
+                        let mut wants_to_use_item_components = self.ecs.write_storage::<WantsToUseItem>();
+                        wants_to_use_item_components.insert(
+                            *player_entity,
+                            WantsToUseItem {
+                                item,
+                                target: result.1,
+                            },
+                        ).expect("Unable to insert WantsToUseItem component.");
                         new_run_state = RunState::PlayerTurn;
                     }
                 }
@@ -186,12 +221,14 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<CombatStats>();
     game_state.ecs.register::<Consumable>();
     game_state.ecs.register::<InBackpack>();
+    game_state.ecs.register::<InflictsDamage>();
     game_state.ecs.register::<Item>();
     game_state.ecs.register::<Monster>();
     game_state.ecs.register::<Name>();
     game_state.ecs.register::<Player>();
     game_state.ecs.register::<Position>();
     game_state.ecs.register::<ProvidesHealing>();
+    game_state.ecs.register::<Ranged>();
     game_state.ecs.register::<Renderer>();
     game_state.ecs.register::<SufferDamage>();
     game_state.ecs.register::<Viewshed>();
