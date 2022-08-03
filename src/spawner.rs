@@ -1,5 +1,6 @@
 use rltk::{RGB, RandomNumberGenerator};
 use specs::prelude::*;
+use crate::AreaOfEffect;
 use super::{
     BlocksTile,
     CombatStats,
@@ -83,16 +84,44 @@ fn spawn_random_item(ecs: &mut World, x: i32, y: i32) {
     let roll: i32;
     {
         let mut random_number_generator = ecs.write_resource::<RandomNumberGenerator>();
-        roll = random_number_generator.roll_dice(1, 2);
+        roll = random_number_generator.roll_dice(1, 3);
     }
     match roll {
         1 => {
             spawn_health_potion(ecs, x, y);
         }
+        2 => {
+            spawn_fireball_scroll(ecs, x, y);
+        }
         _ => {
             spawn_magic_missile_scroll(ecs, x, y);
         }
     }
+}
+
+fn spawn_fireball_scroll(ecs: &mut World, x: i32, y: i32) {
+    ecs
+        .create_entity()
+        .with(AreaOfEffect {
+            radius: 3
+        })
+        .with(Consumable {})
+        .with(InflictsDamage {
+            damage: 20
+        })
+        .with(Item {})
+        .with(Name { name: "Fireball Scroll".to_string() })
+        .with(Position { x, y })
+        .with(Ranged {
+            range: 6,
+        })
+        .with(Renderer {
+            glyph: rltk::to_cp437(')'),
+            fg: RGB::named(rltk::ORANGE),
+            bg: RGB::named(rltk::BLACK),
+            render_order: 2,
+        })
+        .build();
 }
 
 fn spawn_magic_missile_scroll(ecs: &mut World, x: i32, y: i32) {

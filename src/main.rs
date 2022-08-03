@@ -217,6 +217,7 @@ fn main() -> rltk::BError {
     };
 
     // Register Components with ECS.
+    game_state.ecs.register::<AreaOfEffect>();
     game_state.ecs.register::<BlocksTile>();
     game_state.ecs.register::<CombatStats>();
     game_state.ecs.register::<Consumable>();

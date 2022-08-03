@@ -4,6 +4,11 @@ use rltk::{RGB};
 
 // Components
 #[derive(Component, Debug)]
+pub struct AreaOfEffect {
+    pub radius: i32,
+}
+
+#[derive(Component, Debug)]
 pub struct BlocksTile {}
 
 #[derive(Component, Debug)]
