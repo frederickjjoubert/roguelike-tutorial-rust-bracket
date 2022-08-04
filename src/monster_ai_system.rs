@@ -1,7 +1,15 @@
 use specs::prelude::*;
-use super::{Map, Monster, Name, Position, Viewshed};
-use rltk::{Point};
-use crate::{RunState, WantsToMelee};
+use super::{
+    Confusion,
+    Map,
+    Monster,
+    Point,
+    Position,
+    RunState,
+    Viewshed,
+    WantsToMelee,
+};
+
 
 pub struct MonsterAI {}
 
@@ -10,12 +18,12 @@ impl<'a> System<'a> for MonsterAI {
     type SystemData = (
         Entities<'a>,
         ReadExpect<'a, Entity>,
+        ReadExpect<'a, Point>,
+        ReadExpect<'a, RunState>,
         WriteExpect<'a, Map>,
         ReadStorage<'a, Monster>,
-        ReadStorage<'a, Name>,
-        ReadExpect<'a, Point>,
+        WriteStorage<'a, Confusion>,
         WriteStorage<'a, Position>,
-        ReadExpect<'a, RunState>,
         WriteStorage<'a, Viewshed>,
         WriteStorage<'a, WantsToMelee>,
     );
@@ -24,12 +32,12 @@ impl<'a> System<'a> for MonsterAI {
         let (
             entities,
             player_entity,
+            player_position,
+            run_state,
             mut map,
             monsters,
-            names,
-            player_position,
+            mut confusion,
             mut positions,
-            run_state,
             mut viewsheds,
             mut wants_to_melee,
         ) = data;
@@ -37,9 +45,20 @@ impl<'a> System<'a> for MonsterAI {
         // Only run the MonsterAI System if the RunState is the MonstersTurn
         if *run_state != RunState::MonsterTurn { return; }
 
-        for (entity, _monster, _name, mut monster_position, mut monster_viewshed)
-        in (&entities, &monsters, &names, &mut positions, &mut viewsheds).join() {
-            if monster_viewshed.visible_tiles.contains(&*player_position) {
+        for (entity, _monster, mut monster_position, mut monster_viewshed)
+        in (&entities, &monsters, &mut positions, &mut viewsheds).join() {
+            let mut can_act = true;
+
+            let is_confused = confusion.get_mut(entity);
+            if let Some(is_confused) = is_confused {
+                is_confused.turns -= 1;
+                if is_confused.turns < 1 {
+                    confusion.remove(entity);
+                }
+                can_act = false;
+            }
+
+            if can_act {
                 let distance_to_player = rltk::DistanceAlg::Pythagoras.distance2d(
                     Point::new(monster_position.x, monster_position.y),
                     *player_position,
@@ -47,15 +66,24 @@ impl<'a> System<'a> for MonsterAI {
                 if distance_to_player < 1.5 {
                     wants_to_melee.insert(entity, WantsToMelee { target: *player_entity }).expect("Unable to insert WantsToMelee component.");
                     return;
-                }
-                let path_to_player = rltk::a_star_search(
-                    map.xy_idx(monster_position.x, monster_position.y),
-                    map.xy_idx(player_position.x, player_position.y),
-                    &mut *map);
-                if path_to_player.success && path_to_player.steps.len() > 1 {
-                    monster_position.x = path_to_player.steps[1] as i32 % map.width;
-                    monster_position.y = path_to_player.steps[1] as i32 / map.width;
-                    monster_viewshed.dirty = true;
+                } else if monster_viewshed.visible_tiles.contains(&*player_position) {
+                    let path_to_player = rltk::a_star_search(
+                        map.xy_idx(monster_position.x, monster_position.y),
+                        map.xy_idx(player_position.x, player_position.y),
+                        &mut *map);
+                    if path_to_player.success && path_to_player.steps.len() > 1 {
+                        // Unblock current position.
+                        let index = map.xy_idx(monster_position.x, monster_position.y);
+                        map.blocked_tiles[index] = false;
+                        // Move along path to the next position.
+                        monster_position.x = path_to_player.steps[1] as i32 % map.width;
+                        monster_position.y = path_to_player.steps[1] as i32 / map.width;
+                        // Block new position.
+                        let index = map.xy_idx(monster_position.x, monster_position.y);
+                        map.blocked_tiles[index] = true;
+                        // Viewshed needs to update now.
+                        monster_viewshed.dirty = true;
+                    }
                 }
             }
         }

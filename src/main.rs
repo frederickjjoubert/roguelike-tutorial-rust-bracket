@@ -220,6 +220,7 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<AreaOfEffect>();
     game_state.ecs.register::<BlocksTile>();
     game_state.ecs.register::<CombatStats>();
+    game_state.ecs.register::<Confusion>();
     game_state.ecs.register::<Consumable>();
     game_state.ecs.register::<InBackpack>();
     game_state.ecs.register::<InflictsDamage>();

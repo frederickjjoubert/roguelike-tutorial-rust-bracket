@@ -19,6 +19,11 @@ pub struct CombatStats {
     pub power: i32,
 }
 
+#[derive(Component, Debug)]
+pub struct Confusion {
+    pub turns: i32,
+}
+
 // This component is a 'flag' component.
 // Having this item indicates that using it destroys it (consumed on use).
 #[derive(Component, Debug)]

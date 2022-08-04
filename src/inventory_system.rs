@@ -1,5 +1,5 @@
 use specs::prelude::*;
-use crate::{AreaOfEffect, InflictsDamage, SufferDamage};
+use crate::{AreaOfEffect, Confusion, InflictsDamage, SufferDamage};
 use super::{
     CombatStats,
     Consumable,
@@ -76,6 +76,7 @@ impl<'a> System<'a> for ItemUseSystem {
         ReadStorage<'a, Name>,
         ReadStorage<'a, ProvidesHealing>,
         WriteStorage<'a, CombatStats>,
+        WriteStorage<'a, Confusion>,
         WriteStorage<'a, SufferDamage>,
         WriteStorage<'a, WantsToUseItem>,
     );
@@ -92,6 +93,7 @@ impl<'a> System<'a> for ItemUseSystem {
             names,
             provides_healing_components,
             mut combat_stats_components,
+            mut confusion_components,
             mut suffer_damage_components,
             mut wants_to_use_item_components
         ) = data;
@@ -110,7 +112,7 @@ impl<'a> System<'a> for ItemUseSystem {
                     targets.push(*player_entity);
                 }
                 Some(target) => {
-                    // There is a target. Check for AreaOfEffect component.
+                    // There is a point specified. Check for AreaOfEffect component.
                     let possible_area_of_affect_component
                         = area_of_effect_components.get(item_entity);
                     match possible_area_of_affect_component {
@@ -137,6 +139,7 @@ impl<'a> System<'a> for ItemUseSystem {
                             for affected_tile in affected_tiles.iter() {
                                 let index = map.xy_idx(affected_tile.x, affected_tile.y);
                                 for mob in map.tile_contents[index].iter() {
+                                    // Right now this allows you to do AoE damage to items, even though they don't have health.
                                     targets.push(*mob);
                                 }
                             }
@@ -176,7 +179,7 @@ impl<'a> System<'a> for ItemUseSystem {
             match inflicts_damage_item {
                 None => {}
                 Some(inflicts_damage_item) => {
-                    is_item_used = false;
+                    // is_item_used = false;
                     for target in targets.iter() {
                         // Add damage
                         SufferDamage::new_damage(
@@ -196,9 +199,42 @@ impl<'a> System<'a> for ItemUseSystem {
                                 )
                             );
                         }
+                    }
+                    is_item_used = true;
+                }
+            }
+
+            // Confusion Items
+            let mut confused_targets = Vec::new();
+            {
+                let causes_confusion_item = confusion_components.get(item_entity);
+                match causes_confusion_item {
+                    None => {}
+                    Some(causes_confusion_item) => {
+                        // is_item_used = false;
+                        for target in targets.iter() {
+                            confused_targets.push((*target, causes_confusion_item.turns));
+                            if entity == *player_entity {
+                                let target_name = &names.get(*target).unwrap().name;
+                                let item_name = &names.get(item_entity).unwrap().name;
+                                game_log.entries.push(format!(
+                                    "You use {} on {}, confusing them!",
+                                    item_name,
+                                    target_name
+                                ));
+                            }
+                        }
                         is_item_used = true;
                     }
                 }
+            }
+            for target in confused_targets.iter() {
+                confusion_components.insert(
+                    target.0,
+                    Confusion {
+                        turns: target.1
+                    },
+                ).expect("Unable to insert Confusion component.");
             }
 
             // Delete the Item if it is Consumable
