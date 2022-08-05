@@ -34,9 +34,13 @@ pub struct State {
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
     AwaitingInput,
+    MainMenu {
+        menu_selection: gui::MainMenuSelection
+    },
     MonsterTurn,
     PreRun,
     PlayerTurn,
+    SaveGame,
     ShowDropItem,
     ShowInventory,
     ShowTargeting {
@@ -69,42 +73,44 @@ impl State {
 
 impl GameState for State {
     fn tick(&mut self, context: &mut Rltk) {
-        context.cls(); // Clear the Screen.
-
-        // === Render Loop ===
-
-        // Render the Map
-        draw_map(&self.ecs, context);
-
-        {
-            let map = self.ecs.fetch::<Map>();
-            // Render Entities: Here we're calling into the ECS to perform the Rendering
-            let positions = self.ecs.read_storage::<Position>();
-            let renderers = self.ecs.read_storage::<Renderer>();
-            let mut render_data = (&positions, &renderers)
-                .join()
-                .collect::<Vec<_>>();
-            render_data.sort_by(
-                |&a, &b|
-                    b.1.render_order.cmp(&a.1.render_order)
-            );
-            for (position, renderer) in render_data.iter() {
-                let index = map.xy_idx(position.x, position.y);
-                if map.visible_tiles[index] {
-                    context.set(position.x, position.y, renderer.fg, renderer.bg, renderer.glyph)
-                }
-            }
-
-            // Draw UI
-            gui::draw_ui(&self.ecs, context);
-        }
-
-        // === Input Loop ===
         // Get RunState resource
         let current_run_state = *self.ecs.fetch::<RunState>();
         let mut new_run_state = current_run_state;
 
-        // Match on RunState
+        context.cls(); // Clear the Screen.
+
+        match current_run_state {
+            RunState::MainMenu { .. } => {
+                // Do Nothing -> Don't do any rendering.
+            }
+            _ => {
+                // Render the Map
+                draw_map(&self.ecs, context);
+                {
+                    let map = self.ecs.fetch::<Map>();
+                    // Render Entities: Here we're calling into the ECS to perform the Rendering
+                    let positions = self.ecs.read_storage::<Position>();
+                    let renderers = self.ecs.read_storage::<Renderer>();
+                    let mut render_data = (&positions, &renderers)
+                        .join()
+                        .collect::<Vec<_>>();
+                    render_data.sort_by(
+                        |&a, &b|
+                            b.1.render_order.cmp(&a.1.render_order)
+                    );
+                    for (position, renderer) in render_data.iter() {
+                        let index = map.xy_idx(position.x, position.y);
+                        if map.visible_tiles[index] {
+                            context.set(position.x, position.y, renderer.fg, renderer.bg, renderer.glyph)
+                        }
+                    }
+
+                    // Draw UI
+                    gui::draw_ui(&self.ecs, context);
+                }
+            }
+        }
+
         match current_run_state {
             RunState::PreRun => {
                 self.run_systems();
@@ -121,10 +127,34 @@ impl GameState for State {
                 self.ecs.maintain();
                 new_run_state = RunState::MonsterTurn;
             }
+            RunState::MainMenu { .. } => {
+                let main_menu_result = gui::main_menu(self, context);
+                match main_menu_result {
+                    gui::MainMenuResult::NoSelection { selected } => {
+                        new_run_state = RunState::MainMenu {
+                            menu_selection: selected
+                        };
+                    }
+                    gui::MainMenuResult::Selected { selected: main_menu_selection } => {
+                        match main_menu_selection {
+                            gui::MainMenuSelection::NewGame => new_run_state = RunState::PreRun,
+                            gui::MainMenuSelection::LoadGame => new_run_state = RunState::PreRun,
+                            gui::MainMenuSelection::Quit => {
+                                ::std::process::exit(0);
+                            }
+                        }
+                    }
+                }
+            }
             RunState::MonsterTurn => {
                 self.run_systems();
                 self.ecs.maintain();
                 new_run_state = RunState::AwaitingInput;
+            }
+            RunState::SaveGame => {
+                new_run_state = RunState::MainMenu {
+                    menu_selection: gui::MainMenuSelection::LoadGame
+                }
             }
             RunState::ShowInventory => {
                 let result = gui::show_inventory(self, context);
