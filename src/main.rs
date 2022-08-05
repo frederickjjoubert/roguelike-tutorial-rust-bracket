@@ -148,7 +148,7 @@ impl GameState for State {
                                 save_load_system::delete_save();
                             }
                             gui::MainMenuSelection::Quit => {
-                                ::std::process::exit(0);
+                                std::process::exit(0);
                             }
                         }
                     }
@@ -304,7 +304,7 @@ fn main() -> rltk::BError {
     };
 
     // Add resources to the ECS. (Kinda like global variables?)
-    game_state.ecs.insert(game_log::GameLog {
+    game_state.ecs.insert(GameLog {
         entries: vec!["You find yourself in a dark room with no recollection of who you are.".to_string()]
     });
     game_state.ecs.insert(map);

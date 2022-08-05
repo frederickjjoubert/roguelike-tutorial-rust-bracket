@@ -42,7 +42,7 @@ macro_rules! deserialize_individually {
             &mut ( &mut $ecs.write_storage::<$type>(), ),
             &mut $data.0, // entities
             &mut $data.1, // marker
-            &mut $data.2, // allocater
+            &mut $data.2, // allocator
             &mut $de,
         )
         .unwrap();
@@ -191,8 +191,8 @@ pub fn load_game(ecs: &mut World) {
 }
 
 pub fn delete_save() {
-    if Path::new("./savegame.json").exists() {
-        fs::remove_file("./savegame.json").expect("Unable to delete file");
+    if Path::new("./save_game.json").exists() {
+        fs::remove_file("./save_game.json").expect("Unable to delete file");
     }
 }
 
