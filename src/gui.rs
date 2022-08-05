@@ -324,6 +324,7 @@ pub fn ranged_target(game_state: &mut State, context: &mut Rltk, range: i32) -> 
 }
 
 pub fn main_menu(game_state: &mut State, context: &mut Rltk) -> MainMenuResult {
+    let save_exists = super::save_load_system::does_save_exist();
     let current_run_state = game_state.ecs.fetch::<RunState>();
 
     context.print_color_centered(15, RGB::named(rltk::YELLOW), RGB::named(rltk::BLACK), "Rust Roguelike Tutorial");
@@ -335,10 +336,12 @@ pub fn main_menu(game_state: &mut State, context: &mut Rltk) -> MainMenuResult {
             context.print_color_centered(24, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK), "Begin New Game");
         }
 
-        if current_main_menu_selection == MainMenuSelection::LoadGame {
-            context.print_color_centered(25, RGB::named(rltk::MAGENTA), RGB::named(rltk::BLACK), "Load Game");
-        } else {
-            context.print_color_centered(25, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK), "Load Game");
+        if save_exists {
+            if current_main_menu_selection == MainMenuSelection::LoadGame {
+                context.print_color_centered(25, RGB::named(rltk::MAGENTA), RGB::named(rltk::BLACK), "Load Game");
+            } else {
+                context.print_color_centered(25, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK), "Load Game");
+            }
         }
 
         if current_main_menu_selection == MainMenuSelection::Quit {

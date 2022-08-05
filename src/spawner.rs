@@ -1,5 +1,6 @@
 use rltk::{RGB, RandomNumberGenerator};
 use specs::prelude::*;
+use specs::saveload::{MarkedBuilder, SimpleMarker};
 use super::{
     AreaOfEffect,
     BlocksTile,
@@ -14,6 +15,7 @@ use super::{
     Player,
     Position,
     ProvidesHealing,
+    SerializeMe,
     Ranged,
     Rect,
     Renderer,
@@ -106,6 +108,7 @@ fn spawn_random_item(ecs: &mut World, x: i32, y: i32) {
 fn spawn_confusion_scroll(ecs: &mut World, x: i32, y: i32) {
     ecs
         .create_entity()
+        // Components
         .with(Confusion {
             turns: 4
         })
@@ -122,12 +125,15 @@ fn spawn_confusion_scroll(ecs: &mut World, x: i32, y: i32) {
             bg: RGB::named(rltk::BLACK),
             render_order: 2,
         })
+        // Markers
+        .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }
 
 fn spawn_fireball_scroll(ecs: &mut World, x: i32, y: i32) {
     ecs
         .create_entity()
+        // Components
         .with(AreaOfEffect {
             radius: 3
         })
@@ -147,11 +153,14 @@ fn spawn_fireball_scroll(ecs: &mut World, x: i32, y: i32) {
             bg: RGB::named(rltk::BLACK),
             render_order: 2,
         })
+        // Markers
+        .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }
 
 fn spawn_magic_missile_scroll(ecs: &mut World, x: i32, y: i32) {
     ecs
+        // Components
         .create_entity()
         .with(Consumable {})
         .with(InflictsDamage {
@@ -169,12 +178,15 @@ fn spawn_magic_missile_scroll(ecs: &mut World, x: i32, y: i32) {
             bg: RGB::named(rltk::BLACK),
             render_order: 2,
         })
+        // Markers
+        .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }
 
 fn spawn_health_potion(ecs: &mut World, x: i32, y: i32) {
     ecs
         .create_entity()
+        // Components
         .with(Consumable {})
         .with(Item {})
         .with(Name { name: "Health Potion".to_string() })
@@ -188,12 +200,15 @@ fn spawn_health_potion(ecs: &mut World, x: i32, y: i32) {
             bg: RGB::named(rltk::BLACK),
             render_order: 2,
         })
+        // Markers
+        .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }
 
 pub fn spawn_player(ecs: &mut World, player_x: i32, player_y: i32) -> Entity {
     ecs
         .create_entity()
+        // Components
         .with(CombatStats {
             max_hp: 30,
             hp: 30,
@@ -216,6 +231,8 @@ pub fn spawn_player(ecs: &mut World, player_x: i32, player_y: i32) -> Entity {
             range: 8,
             dirty: true,
         })
+        // Markers
+        .marked::<SimpleMarker<SerializeMe>>()
         .build()
 }
 
@@ -253,6 +270,7 @@ fn spawn_orc(ecs: &mut World, x: i32, y: i32) {
 
 fn spawn_monster<S: ToString>(ecs: &mut World, x: i32, y: i32, glyph: rltk::FontCharType, name: S) {
     ecs
+        // Components
         .create_entity()
         .with(BlocksTile {})
         .with(CombatStats {
@@ -277,5 +295,7 @@ fn spawn_monster<S: ToString>(ecs: &mut World, x: i32, y: i32, glyph: rltk::Font
             range: 8,
             dirty: true,
         })
+        // Markers
+        .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }

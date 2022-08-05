@@ -1,5 +1,8 @@
+extern crate serde;
+
 use rltk::{Rltk, GameState, Point};
 use specs::prelude::*;
+use specs::saveload::{SimpleMarker, SimpleMarkerAllocator}; // To use the Marker functionality.
 
 mod components;
 mod damage_system;
@@ -12,12 +15,14 @@ mod melee_combat_system;
 mod monster_ai_system;
 mod player;
 mod rect;
+mod save_load_system;
 mod spawner;
 mod visibility_system;
 
 pub use components::*;
 use damage_system::DamageSystem;
 pub use game_log::GameLog;
+use inventory_system::{ItemCollectionSystem, ItemDropSystem, ItemUseSystem};
 pub use map::*;
 use map_indexing_system::MapIndexingSystem;
 use melee_combat_system::MeleeCombatSystem;
@@ -25,7 +30,6 @@ use monster_ai_system::MonsterAI;
 use player::*;
 pub use rect::Rect;
 pub use visibility_system::VisibilitySystem;
-use crate::inventory_system::{ItemCollectionSystem, ItemDropSystem, ItemUseSystem};
 
 pub struct State {
     pub ecs: World,
@@ -138,7 +142,11 @@ impl GameState for State {
                     gui::MainMenuResult::Selected { selected: main_menu_selection } => {
                         match main_menu_selection {
                             gui::MainMenuSelection::NewGame => new_run_state = RunState::PreRun,
-                            gui::MainMenuSelection::LoadGame => new_run_state = RunState::PreRun,
+                            gui::MainMenuSelection::LoadGame => {
+                                save_load_system::load_game(&mut self.ecs);
+                                new_run_state = RunState::AwaitingInput;
+                                save_load_system::delete_save();
+                            }
                             gui::MainMenuSelection::Quit => {
                                 ::std::process::exit(0);
                             }
@@ -152,8 +160,9 @@ impl GameState for State {
                 new_run_state = RunState::AwaitingInput;
             }
             RunState::SaveGame => {
+                save_load_system::save_game(&mut self.ecs);
                 new_run_state = RunState::MainMenu {
-                    menu_selection: gui::MainMenuSelection::LoadGame
+                    menu_selection: gui::MainMenuSelection::Quit
                 }
             }
             RunState::ShowInventory => {
@@ -246,7 +255,7 @@ fn main() -> rltk::BError {
         ecs: World::new(),
     };
 
-    // Register Components with ECS.
+    // Register Components with the ECS.
     game_state.ecs.register::<AreaOfEffect>();
     game_state.ecs.register::<BlocksTile>();
     game_state.ecs.register::<CombatStats>();
@@ -262,6 +271,7 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<ProvidesHealing>();
     game_state.ecs.register::<Ranged>();
     game_state.ecs.register::<Renderer>();
+    game_state.ecs.register::<SerializationHelper>();
     game_state.ecs.register::<SufferDamage>();
     game_state.ecs.register::<Viewshed>();
     game_state.ecs.register::<WantsToDrinkPotion>();
@@ -270,6 +280,11 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<WantsToPickupItem>();
     game_state.ecs.register::<WantsToUseItem>();
 
+    // Register Markers with the ECS.
+    game_state.ecs.register::<SimpleMarker<SerializeMe>>();
+
+    // Add an entry to the ECS resources, to determine the next identity:
+    game_state.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
     // Generate the Map
     let map = Map::new_map_rooms_and_corridors();
@@ -295,7 +310,9 @@ fn main() -> rltk::BError {
     game_state.ecs.insert(map);
     game_state.ecs.insert(player_entity);
     game_state.ecs.insert(Point::new(player_x, player_y));
-    game_state.ecs.insert(RunState::PreRun);
+    game_state.ecs.insert(RunState::MainMenu {
+        menu_selection: gui::MainMenuSelection::NewGame
+    });
 
     // Run the main game loop.
     rltk::main_loop(context, game_state)

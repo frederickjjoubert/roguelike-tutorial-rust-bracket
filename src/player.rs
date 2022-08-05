@@ -63,6 +63,7 @@ pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
                 // === State ===
                 VirtualKeyCode::Escape => return RunState::SaveGame,
 
+                // === Anything Else
                 _ => {
                     return RunState::AwaitingInput;
                 } // Anything else, Do Nothing.

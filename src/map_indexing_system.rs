@@ -5,14 +5,19 @@ pub struct MapIndexingSystem {}
 
 impl<'a> System<'a> for MapIndexingSystem {
     type SystemData = (
-        ReadStorage<'a, BlocksTile>,
         Entities<'a>,
         WriteExpect<'a, Map>,
+        ReadStorage<'a, BlocksTile>,
         ReadStorage<'a, Position>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (blocks_tiles, entities, mut map, positions) = data;
+        let (
+            entities,
+            mut map,
+            blocks_tiles,
+            positions
+        ) = data;
 
         map.calculate_blocked_tiles();
         map.clear_all_tiles_contents();
