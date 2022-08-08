@@ -1,6 +1,7 @@
 use rltk::{Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use std::cmp::{max, min};
+use crate::TileType;
 use super::{
     CombatStats,
     GameLog,
@@ -51,6 +52,13 @@ pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
 
                 VirtualKeyCode::Numpad1 |
                 VirtualKeyCode::B => try_move_player(-1, 1, &mut game_state.ecs),
+
+                // Vertical Directions (Up / Down)
+                VirtualKeyCode::Period => {
+                    if try_use_stairs(&mut game_state.ecs) {
+                        return RunState::NextLevel;
+                    }
+                }
 
                 // === Interactions ===
                 // Item Pickup
@@ -145,6 +153,19 @@ fn try_pickup_item(ecs: &mut World) {
                 },
             ).expect("Unable to insert WantsToPickupItem component.");
         }
+    }
+}
+
+fn try_use_stairs(ecs: &mut World) -> bool {
+    let player_position = ecs.fetch::<Point>();
+    let map = ecs.fetch::<Map>();
+    let player_index = map.xy_idx(player_position.x, player_position.y);
+    if map.tiles[player_index] == TileType::Downstairs {
+        true
+    } else {
+        let mut game_log = ecs.fetch_mut::<GameLog>();
+        game_log.entries.push("There is no way down from here.".to_string());
+        false
     }
 }
 

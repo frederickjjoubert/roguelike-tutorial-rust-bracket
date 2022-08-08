@@ -39,11 +39,22 @@ pub enum MainMenuResult {
 }
 
 pub fn draw_ui(ecs: &World, context: &mut Rltk) {
+    // Box
     context.draw_box(0, 43, 79, 6, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
 
+    // Depth
+    let map = ecs.fetch::<Map>();
+    let depth = format!("Depth: {}", map.depth);
+    context.print_color(
+        2, 43,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        &depth,
+    );
+
+    // Health
     let combat_stats = ecs.read_storage::<CombatStats>();
     let players = ecs.read_storage::<Player>();
-
     for (_player, combat_stat) in (&players, &combat_stats).join() {
         // Health Text with Color
         let health = format!("{} / {}", combat_stat.hp, combat_stat.max_hp);

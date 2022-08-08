@@ -10,8 +10,9 @@ pub const MAP_COUNT: usize = MAP_WIDTH * MAP_HEIGHT;
 
 #[derive(PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub enum TileType {
-    Wall,
     Floor,
+    Downstairs,
+    Wall,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]
@@ -20,6 +21,7 @@ pub struct Map {
     pub rooms: Vec<Rect>,
     pub width: i32,
     pub height: i32,
+    pub depth: i32,
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
@@ -96,12 +98,13 @@ impl Map {
         }
     }
 
-    pub fn new_map_rooms_and_corridors() -> Map {
+    pub fn new_map_rooms_and_corridors(new_depth: i32) -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; MAP_COUNT],
             rooms: Vec::new(),
             width: MAP_WIDTH as i32,
             height: MAP_HEIGHT as i32,
+            depth: new_depth,
             revealed_tiles: vec![false; MAP_COUNT],
             visible_tiles: vec![false; MAP_COUNT],
             blocked_tiles: vec![false; MAP_COUNT],
@@ -147,6 +150,10 @@ impl Map {
                 map.rooms.push(new_room);
             }
         }
+
+        let (stair_x, stair_y) = map.rooms[map.rooms.len() - 1].center();
+        let stair_index = map.xy_idx(stair_x, stair_y);
+        map.tiles[stair_index] = TileType::Downstairs;
 
         map
     }
@@ -195,6 +202,11 @@ pub fn draw_map(ecs: &World, context: &mut Rltk) {
                     fg_color = RGB::from_f32(0.0, 0.5, 0.5);
                     bg_color = RGB::from_f32(0.0, 0.0, 0.0);
                     glyph = rltk::to_cp437('.');
+                }
+                TileType::Downstairs => {
+                    fg_color = RGB::from_f32(0.0, 1.0, 1.0);
+                    bg_color = RGB::from_f32(0.0, 0.0, 0.0);
+                    glyph = rltk::to_cp437('>');
                 }
                 TileType::Wall => {
                     fg_color = RGB::from_f32(0.0, 1.0, 0.0);

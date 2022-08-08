@@ -42,6 +42,7 @@ pub enum RunState {
         menu_selection: gui::MainMenuSelection
     },
     MonsterTurn,
+    NextLevel,
     PreRun,
     PlayerTurn,
     SaveGame,
@@ -72,6 +73,89 @@ impl State {
         let mut drop_items = ItemDropSystem {};
         drop_items.run_now(&self.ecs);
         self.ecs.maintain(); // Tells Specs to apply any changes that are queued up.
+    }
+
+    fn entities_to_remove_on_level_change(&mut self) -> Vec<Entity> {
+        let entities = self.ecs.entities();
+        let player = self.ecs.read_storage::<Player>();
+        let backpack_components = self.ecs.read_storage::<InBackpack>();
+        let player_entity = self.ecs.fetch::<Entity>();
+
+        let mut entities_to_delete: Vec<Entity> = Vec::new();
+        for entity in entities.join() {
+            let mut should_delete = true;
+
+            // Don't delete the player
+            let potential_player_entity = player.get(entity);
+            if let Some(_player_entity) = potential_player_entity {
+                should_delete = false;
+            }
+
+            // Don't delete the players equipment
+            let backpack = backpack_components.get(entity);
+            if let Some(backpack) = backpack {
+                if backpack.owner == *player_entity {
+                    should_delete = false;
+                }
+            }
+
+            if should_delete { entities_to_delete.push(entity) }
+        }
+
+        entities_to_delete
+    }
+
+    fn goto_next_level(&mut self) {
+        // Delete the entities that aren't the player or his/her equipment.
+        let entities_to_delete = self.entities_to_remove_on_level_change();
+        for entity in entities_to_delete {
+            self.ecs.delete_entity(entity).expect("Unable to delete Entity");
+        }
+
+        // Build a new map and place the player
+        let world_map;
+        {
+            let mut world_map_resource = self.ecs.write_resource::<Map>();
+            let current_depth = world_map_resource.depth;
+            *world_map_resource = Map::new_map_rooms_and_corridors(current_depth + 1);
+            world_map = world_map_resource.clone();
+        }
+
+        // Create Monsters
+        for room in world_map.rooms.iter().skip(1) {
+            spawner::fill_room(&mut self.ecs, room);
+        };
+
+        // Place the player and update resources
+        let (player_new_x, player_new_y) = world_map.rooms[0].center();
+        let mut player_position = self.ecs.write_resource::<Point>();
+        *player_position = Point::new(player_new_x, player_new_y);
+        let mut position_components = self.ecs.write_storage::<Position>();
+        let player_entity = self.ecs.fetch::<Entity>();
+        let player_position_component = position_components.get_mut(*player_entity);
+        if let Some(player_position_component) = player_position_component {
+            player_position_component.x = player_new_x;
+            player_position_component.y = player_new_y;
+        }
+
+        // Mark the players visibility as dirty.
+        let mut viewshed_components = self.ecs.write_storage::<Viewshed>();
+        let player_viewshed_component = viewshed_components.get_mut(*player_entity);
+        if let Some(player_viewshed_component) = player_viewshed_component {
+            player_viewshed_component.dirty = true;
+        }
+
+        // Notify the player and give some health (potential abuse?)
+        let mut game_log = self.ecs.fetch_mut::<GameLog>();
+        game_log.entries.push("You descend to the level below and take a moment to rest.".to_string());
+        let mut combat_stats_components = self.ecs.write_storage::<CombatStats>();
+        let player_combat_stats_component = combat_stats_components.get_mut(*player_entity);
+        if let Some(player_combat_stats_component) = player_combat_stats_component {
+            player_combat_stats_component.hp = i32::max(
+                player_combat_stats_component.hp,
+                player_combat_stats_component.max_hp / 2,
+            );
+        }
     }
 }
 
@@ -158,6 +242,10 @@ impl GameState for State {
                 self.run_systems();
                 self.ecs.maintain();
                 new_run_state = RunState::AwaitingInput;
+            }
+            RunState::NextLevel => {
+                self.goto_next_level();
+                new_run_state = RunState::PreRun;
             }
             RunState::SaveGame => {
                 save_load_system::save_game(&mut self.ecs);
@@ -287,7 +375,7 @@ fn main() -> rltk::BError {
     game_state.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
     // Generate the Map
-    let map = Map::new_map_rooms_and_corridors();
+    let map = Map::new_map_rooms_and_corridors(1);
 
     // Get Player Start Position
     let (player_x, player_y) = map.rooms[0].center();
