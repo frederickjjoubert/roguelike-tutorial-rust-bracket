@@ -14,6 +14,7 @@ mod map_indexing_system;
 mod melee_combat_system;
 mod monster_ai_system;
 mod player;
+mod random_table;
 mod rect;
 mod save_load_system;
 mod spawner;
@@ -28,6 +29,7 @@ use map_indexing_system::MapIndexingSystem;
 use melee_combat_system::MeleeCombatSystem;
 use monster_ai_system::MonsterAI;
 use player::*;
+pub use random_table::*;
 pub use rect::Rect;
 pub use visibility_system::VisibilitySystem;
 
@@ -114,16 +116,17 @@ impl State {
 
         // Build a new map and place the player
         let world_map;
+        let current_depth;
         {
             let mut world_map_resource = self.ecs.write_resource::<Map>();
-            let current_depth = world_map_resource.depth;
+            current_depth = world_map_resource.depth;
             *world_map_resource = Map::new_map_rooms_and_corridors(current_depth + 1);
             world_map = world_map_resource.clone();
         }
 
         // Create Monsters
         for room in world_map.rooms.iter().skip(1) {
-            spawner::fill_room(&mut self.ecs, room);
+            spawner::fill_room(&mut self.ecs, room, current_depth + 1);
         };
 
         // Place the player and update resources
@@ -388,7 +391,7 @@ fn main() -> rltk::BError {
 
     // Create Monsters
     for room in map.rooms.iter().skip(1) {
-        spawner::fill_room(&mut game_state.ecs, room);
+        spawner::fill_room(&mut game_state.ecs, room, 1);
     };
 
     // Add resources to the ECS. (Kinda like global variables?)

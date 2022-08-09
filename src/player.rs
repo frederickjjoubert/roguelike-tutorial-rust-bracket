@@ -7,6 +7,7 @@ use super::{
     GameLog,
     Item,
     Map,
+    Monster,
     Player,
     Position,
     RunState,
@@ -70,6 +71,11 @@ pub fn player_input(game_state: &mut State, context: &mut Rltk) -> RunState {
 
                 // === State ===
                 VirtualKeyCode::Escape => return RunState::SaveGame,
+
+                // === Skip Turn ===
+                VirtualKeyCode::Space => return skip_turn(&mut game_state.ecs),
+                VirtualKeyCode::Numpad5 => return skip_turn(&mut game_state.ecs),
+
 
                 // === Anything Else
                 _ => {
@@ -167,6 +173,41 @@ fn try_use_stairs(ecs: &mut World) -> bool {
         game_log.entries.push("There is no way down from here.".to_string());
         false
     }
+}
+
+fn skip_turn(ecs: &mut World) -> RunState {
+    let map = ecs.fetch::<Map>();
+    let player_entity = ecs.fetch::<Entity>();
+    let viewshed_components = ecs.read_storage::<Viewshed>();
+    let monsters = ecs.read_storage::<Monster>();
+
+    // Check for nearby monsters.
+    let mut can_heal = true;
+    let player_viewshed = viewshed_components.get(*player_entity).unwrap();
+    for tile in player_viewshed.visible_tiles.iter() {
+        let index = map.xy_idx(tile.x, tile.y);
+        for entity in map.tile_contents[index].iter() {
+            let monster = monsters.get(*entity);
+            match monster {
+                None => {}
+                Some(_) => {
+                    can_heal = false;
+                }
+            }
+        }
+    }
+
+    // Heal if no monsters are around.
+    if can_heal {
+        let mut combat_stats_components = ecs.write_storage::<CombatStats>();
+        let player_combat_stats_component = combat_stats_components.get_mut(*player_entity).unwrap();
+        player_combat_stats_component.hp = i32::min(
+            player_combat_stats_component.hp + 1,
+            player_combat_stats_component.max_hp,
+        );
+    }
+
+    RunState::PlayerTurn
 }
 
 
